@@ -22,7 +22,7 @@ We are Group-11.
 
 ### Introduction to SylixOS
 
-![img](https://www.sylixos.com/img/logo.png)
+![img](Design%20Report.assets/logo.png)
 
 `SylixOS` is a large-scale embedded real-time operating system (OS), with a completely China-made kernel.
 
@@ -45,7 +45,7 @@ As a preemptive multitasking hard real-time operating system, SylixOS has the ma
 
 ### Introduction to TTinyShell
 
-![image-20210427223534886](Design Report.assets/image-20210427223534886.png)
+![image-20210427223534886](Design%20Report.assets/image-20210427223534886.png)
 
 SylixOS has its own command line interface, which is named as `TTinyShell`. 
 
@@ -59,7 +59,7 @@ TTinyShell has no pipeline, no output filter, and no divi-screen display. It als
 
 #### 1. RealEvo-IDE
 
-![image-20210427220346152](Design Report.assets/image-20210427220346152.png)
+![image-20210427220346152](Design%20Report.assets/image-20210427220346152.png)
 
 `RealEvo-IDE` is a SylixOS dedicated operating system integrated development environment. It's a Eclipse-like software, and it includes:
 
@@ -71,7 +71,7 @@ TTinyShell has no pipeline, no output filter, and no divi-screen display. It als
 
 #### 2. RealEvo-Simulator
 
-![image-20210427220313915](Design Report.assets/image-20210427220313915.png)
+![image-20210427220313915](Design%20Report.assets/image-20210427220313915.png)
 
 `RealEvo-Simulator` is a hypervisor for SylixOS virtual machines. Since `RealEvo-Simulator` runs VMs, it would not require the CPU architecture type of the host machine. It provides putty-based telnet terminal for users to interact with the VMs, and help users to configure the network adapters of the host machine.
 
