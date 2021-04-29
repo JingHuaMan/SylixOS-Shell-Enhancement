@@ -98,6 +98,7 @@ cat test.sh test1.sh 2>null | grep -n 'echo'
 
 In particular,  '|&' means that in addition to command1's standard output, its standard error is connected to command2's standard input through pipe. It is short for 2>&1|.
 
+So what we want to realize is a pipeline mechanism like bash which connect output of the command to the next command, including '|' and '|&'. But for the 'time' segment mentioned above, which is not realized in SylixOS now, we do not guarantee to implement it, because it is not part of pipeline. 
 
 ## Division of Labors
 
