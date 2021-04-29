@@ -18,7 +18,7 @@ We are Group-11.
 | 罗叶安 | 11810616 |
 | 李昊锦 | 11810911 |
 
-## Group Background And Description
+## Project Background and Description
 
 ### Introduction to SylixOS
 
