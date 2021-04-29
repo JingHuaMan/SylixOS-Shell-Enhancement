@@ -2,9 +2,17 @@
 
 ## Group Info
 
+### Project Title
+
+proj12-shell-enhancement-on-SylixOS
+
 ### Project Objective
 
 Design and improve the command line mechanism of `SylixOS`.
+
+### Deadline for this Project
+
+2021/5/30 23 : 00
 
 ### Group ID
 
@@ -53,7 +61,7 @@ The experience of ttinyShell is similar to that of `Bash` or other shell program
 
 Besides, ttinyShell has already included a basic auto-completion function. When typing in the prefix of the files in the current folder or `Home` folder,  it could automatically complete the rest; and if there are multiple file names share the same prefix, then the alternative will be also shown just below the current line. It's actually similar to `Bash`.
 
-TTinyShell has no pipeline, no output filter, and no divi-screen display. It also supports shell scripts, but complicated mechanisms like `if` / `else` / `while` could not be used in the scripts yet.
+TTinyShell has no pipe, no output filter, and no divi-screen display. It also supports shell scripts, but complicated mechanisms like `if` / `else` / `while` could not be used in the scripts yet.
 
 ### Tools We will Use
 
@@ -73,7 +81,7 @@ TTinyShell has no pipeline, no output filter, and no divi-screen display. It als
 
 ![image-20210427220313915](Design%20Report.assets/image-20210427220313915.png)
 
-`RealEvo-Simulator` is a hypervisor for SylixOS virtual machines. Since `RealEvo-Simulator` runs VMs, it would not require the CPU architecture type of the host machine. It provides putty-based telnet terminal for users to interact with the VMs, and help users to configure the network adapters of the host machine.
+`RealEvo-Simulator` is a hypervisor for SylixOS virtual machines. Since `RealEvo-Simulator` runs VMs, it would not limit the CPU architecture type of the host machine. It provides putty-based telnet terminal for users to interact with the VMs, and help users to configure the network adapters of the host machine.
 
 ## Implementation
 
@@ -85,6 +93,21 @@ TTinyShell has no pipeline, no output filter, and no divi-screen display. It als
 
 ## Division of Labors
 
+| Name   | Labor           |
+| ------ | --------------- |
+| 徐向宇 | auto-completion |
+| 罗叶安 | pipe            |
+| 李昊锦 | split-screen    |
+
+## Time Schedule
+
+| Week | Task               |
+| ---- | ------------------ |
+| 12   | auto-completion    |
+| 13   | pipe               |
+| 14   | pipe, split-screen |
+| 15   | split-screen       |
+
 ## Reference
 
 1. `SylixOS_application_usermanual.pdf`
@@ -92,3 +115,4 @@ TTinyShell has no pipeline, no output filter, and no divi-screen display. It als
 
 3. https://en.wikipedia.org/wiki/Operating_system
 4. 
+
