@@ -83,31 +83,21 @@ TTinyShell has no pipe, no output filter, and no divi-screen display. It also su
 
 `RealEvo-Simulator` is a hypervisor for SylixOS virtual machines. Since `RealEvo-Simulator` runs VMs, it would not require the CPU architecture type of the host machine. It provides putty-based telnet terminal for users to interact with the VMs, and help users to configure the network adapters of the host machine.
 
-## Implementation
-
-### Pipeline
-
-As the part of Project Background and Description and Expected Goals says, we want to realize a pipeline mechanism including '|' and '|&'.
-
-At present, our general realization idea is to connect the standard input and output of two different program processes.
-
-**Standard input & Standard output:** 
-
-Every process has 3 default file handles and descriptor:
-
-| file descriptor number | name   | meaning                                                      |
-| ---------------------- | ------ | ------------------------------------------------------------ |
-| 0                      | Stdin  | stream from which a program reads its input data             |
-| 1                      | Stdout | stream to which a program writes its output data             |
-| 2                      | Stderr | another output stream typically used by programs to output error messages |
-
-So if we can connect the command's Stdout to the next command's Stdin, the pipeline will be implemented. 
-
-In terms of specific implementation, our current consideration is achieved through the pipe method in the C header file unistd.h. Since SylixOS conforms to the POSIX standard, unistd.h should be a usable header file, and the pipe() system call can create a pipe. We then redirect the standard output in the process where the previous command is located to the pipe entry, Redirect the standard input of the latter command to the exit.
-
-But the current difficulty is that it does not directly use fork, dup2 and other system calls, and it also encapsulates exec calls, so it cannot be easily achieved through processes such as pipe, fork, exec, dup2. In our current opinion, it may be necessary to further understand the source code, debug the virtual machine, explore and try.
-
 ## Expected goals
+
+### Auto Completion
+
+Basically, our goals for this part is as following:
+
+1. Auto filename filling for all files in the current / HOME directory and all paths included in the `PATH` variable. After this function is finished, the shell could auto-fill all command names.
+
+    ![image-20210429192102031](Design%20Report.assets/image-20210429192102031.png)
+
+2. History command completion. Example: `zsh-autosuggestions` plugin of `oh-my-zsh`
+
+    ![image-20210429192442646](Design%20Report.assets/image-20210429192442646.png)
+
+3. **If possible:** an API for adding help info for various commands. Example `complete`
 
 ### Pipeline
 
@@ -131,6 +121,95 @@ In particular,  '|&' means that in addition to command1's standard output, its s
 
 In SylixOS, redirection has been implemented, but the pipeline part has not been yet. So what we want to realize is a pipeline mechanism like bash which connect output of the command to the next command, including '|' and '|&'. But for the 'time' segment mentioned above, which is not realized in SylixOS now, we do not guarantee to implement it, because it is not part of pipeline. 
 
+## Implementation
+
+### Auto Completion
+
+In `Bash`, the auto-completion function is based on `Readline` library. The GNU Readline library provides a set of functions for use by applications that allow users to edit command lines as they are typed in. In SylixOS, there is already basic auto-completion function implemented, which could fill the filename of those in the current or `HOME` directory when typing in the prefixes of them, and the way of its implementation is quite similar to the Readline library.
+
+#### Where to change
+
+The first question we shall answer about the function we want to accomplish is that, which codes we should modify?
+
+ Let's begin with a brief introduction to the source codes of ttinyShell. Most of the core running logics are in the function `__tshellThread` in the file `ttinyShellLib.c`, this function will repeatedly read in characters in a loop.
+
+```c
+PVOID   __tshellThread (PVOID  pcArg)
+{
+	...
+	for (;;) {
+		...
+		if (__TTINY_SHELL_GET_OPT(ptcbCur) & LW_OPTION_TSHELL_NOECHO) {
+            iReadNum = (INT)read(0, &cRecvBuffer[iTotalNum], 
+                                 LW_CFG_SHELL_MAX_COMMANDLEN - 
+                                 iTotalNum);                            /*  接收字符串  */
+        } else {
+            iReadNum = (INT)__tshellReadline(0, &cRecvBuffer[iTotalNum], 
+                                             LW_CFG_SHELL_MAX_COMMANDLEN - 
+                                             iTotalNum);                /*  接收字符串  */
+        }
+		...		
+	}
+	...
+}
+```
+
+ Then, the function `__tshellReadline` in file `ttinyShellReadline.c` will check every input character, and dispatch the events to different event handler depends on the current input character and the characters in the input context.
+
+```c
+ssize_t  __tshellReadline (INT  iFd, PVOID  pcBuffer, size_t  stSize)
+{
+	...
+	} else if (__KEY_IS_TAB(cRead)) {                               /*  tab  */
+            __tshellCharTab(iFd, &sicContext);
+	...
+}
+```
+
+The function `__tshellCharTab`  is what we call "handler". If the users type in `TAB`, this function will be executed; and that means, most of our future work about auto-completion will base on this function.
+
+#### How to change
+
+The following are a quite short and brief route to implement auto-completion:
+
+1. Modify the function `__tshellFileMatch`, to make it possible to input multiple paths
+
+    ```c
+    static VOID  __tshellFileMatch (INT  iFd, PCHAR  pcDir, PCHAR  pcFileName, __PSHELL_INPUT_CTX  psicContext);
+    ```
+
+2. Modify the function `__tshellCharTab`. When a `TAB` is read in and there is only one item (the command) in the command line buffer, run `__tshellFileMatch` for all paths in `PATH`. We could get the environment variable by the function `__tshellVarGet` in the file `ttinyVarLib.h`
+
+    ```c
+    ULONG  __tshellVarGet(CPCHAR  pcVarName, PCHAR  *ppcVarValue);
+    ```
+
+3. To implement history suggestions: currently the history commands are stored in a double linked list in struct `__SHELL_HISTORY_CTX`, and the head node is named to `_K_plineShellHisc`. If we traverse all the nodes to find the command best fit the current input prefix, the time complexity would be $O(n)$. If possible, we could implement a trie (prefix tree) to store them. This will reduce the time complexity to $O(\log n)$, and the worst space complexity is $O(n)$.
+
+4. TTinyShell supports color configuration in the file `ttinyShellColor.h`, so we could change characters' color if they are "suggestions"
+
+### Pipeline
+
+As the part of Project Background and Description and Expected Goals says, we want to realize a pipeline mechanism including '|' and '|&'.
+
+At present, our general realization idea is to connect the standard input and output of two different program processes.
+
+**Standard input & Standard output:** 
+
+Every process has 3 default file handles and descriptor:
+
+| file descriptor number | name   | meaning                                                      |
+| ---------------------- | ------ | ------------------------------------------------------------ |
+| 0                      | Stdin  | stream from which a program reads its input data             |
+| 1                      | Stdout | stream to which a program writes its output data             |
+| 2                      | Stderr | another output stream typically used by programs to output error messages |
+
+So if we can connect the command's Stdout to the next command's Stdin, the pipeline will be implemented. 
+
+In terms of specific implementation, our current consideration is achieved through the pipe method in the C header file unistd.h. Since SylixOS conforms to the POSIX standard, unistd.h should be a usable header file, and the pipe() system call can create a pipe. We then redirect the standard output in the process where the previous command is located to the pipe entry, Redirect the standard input of the latter command to the exit.
+
+But the current difficulty is that it does not directly use fork, dup2 and other system calls, and it also encapsulates exec calls, so it cannot be easily achieved through processes such as pipe, fork, exec, dup2. In our current opinion, it may be necessary to further understand the source code, debug the virtual machine, explore and try.
+
 ## Division of Labors
 | Name   | Labor           |
 | ------ | --------------- |
@@ -146,8 +225,6 @@ In SylixOS, redirection has been implemented, but the pipeline part has not been
 | 13   | pipe               |
 | 14   | pipe, split-screen |
 | 15   | split-screen       |
-
-
 
 ## Reference
 
