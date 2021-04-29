@@ -26,7 +26,7 @@ We are Group-11.
 | 罗叶安 | 11810616 |
 | 李昊锦 | 11810911 |
 
-## Group Background And Description
+## Project Background and Description
 
 ### Introduction to SylixOS
 
@@ -81,18 +81,34 @@ TTinyShell has no pipe, no output filter, and no divi-screen display. It also su
 
 ![image-20210427220313915](Design%20Report.assets/image-20210427220313915.png)
 
-`RealEvo-Simulator` is a hypervisor for SylixOS virtual machines. Since `RealEvo-Simulator` runs VMs, it would not limit the CPU architecture type of the host machine. It provides putty-based telnet terminal for users to interact with the VMs, and help users to configure the network adapters of the host machine.
+`RealEvo-Simulator` is a hypervisor for SylixOS virtual machines. Since `RealEvo-Simulator` runs VMs, it would not require the CPU architecture type of the host machine. It provides putty-based telnet terminal for users to interact with the VMs, and help users to configure the network adapters of the host machine.
 
 ## Implementation
 
 
 
 ## Expected Goals
+### Pipeline
 
+Pipeline is a very important function in the implementation of the shell, as the bash documentation says: “A pipeline is a sequence of one or more commands separated by one of the control operators ‘|’ or ‘|&’”.  And the format for a pipeline is:
 
+```
+[time [-p]] [!] command1 [ | or |& command2 ] ...
+```
+
+In general, Pipeline allows users to connect output of a command to the input of the next command. That is, each command reads the previous command’s output. Pipes and redirects are very similar and connection of pipes is performed before any redirections specified by the command. Same as other commands, 'time' can be used at the beginning of command to count the elapsed, user and system time.
+
+For example, the following command means that redirecting standard output to null file if error happens such as not finding the file and pass the output to "grep" command otherwise:
+
+```
+cat test.sh test1.sh 2>null | grep -n 'echo'
+```
+
+In particular,  '|&' means that in addition to command1's standard output, its standard error is connected to command2's standard input through pipe. It is short for 2>&1|.
+
+So what we want to realize is a pipeline mechanism like bash which connect output of the command to the next command, including '|' and '|&'. But for the 'time' segment mentioned above, which is not realized in SylixOS now, we do not guarantee to implement it, because it is not part of pipeline. 
 
 ## Division of Labors
-
 | Name   | Labor           |
 | ------ | --------------- |
 | 徐向宇 | auto-completion |
@@ -108,6 +124,8 @@ TTinyShell has no pipe, no output filter, and no divi-screen display. It also su
 | 14   | pipe, split-screen |
 | 15   | split-screen       |
 
+
+
 ## Reference
 
 1. `SylixOS_application_usermanual.pdf`
@@ -115,4 +133,3 @@ TTinyShell has no pipe, no output filter, and no divi-screen display. It also su
 
 3. https://en.wikipedia.org/wiki/Operating_system
 4. 
-
