@@ -80,7 +80,23 @@ TTinyShell has no pipeline, no output filter, and no divi-screen display. It als
 
 
 ## Expected Goals
+### Pipeline
 
+Pipeline is a very important function in the implementation of the shell, as the bash documentation says: “A pipeline is a sequence of one or more commands separated by one of the control operators ‘|’ or ‘|&’”.  And the format for a pipeline is:
+
+```
+[time [-p]] [!] command1 [ | or |& command2 ] ...
+```
+
+In general, Pipeline allows users to connect output of a command to the input of the next command. That is, each command reads the previous command’s output. Pipes and redirects are very similar and connection of pipes is performed before any redirections specified by the command. Same as other commands, 'time' can be used at the beginning of command to count the elapsed, user and system time.
+
+For example, the following command means that redirecting standard output to null file if error happens such as not finding the file and pass the output to "grep" command otherwise:
+
+```
+cat test.sh test1.sh 2>null | grep -n 'echo'
+```
+
+In particular,  '|&' means that in addition to command1's standard output, its standard error is connected to command2's standard input through pipe. It is short for 2>&1|.
 
 
 ## Division of Labors
