@@ -77,12 +77,35 @@ TTinyShell has no pipeline, no output filter, and no divi-screen display. It als
 
 ## Implementation
 
-
-
-## Expected Goals
 ### Pipeline
 
-Pipeline is a very important function in the implementation of the shell, as the bash documentation says: “A pipeline is a sequence of one or more commands separated by one of the control operators ‘|’ or ‘|&’”.  And the format for a pipeline is:
+As the part of Project Background and Description and Expected Goals says, we want to realize a pipeline mechanism including '|' and '|&'.
+
+At present, our general realization idea is to connect the standard input and output of two different program processes.
+
+**Standard input & Standard output:** 
+
+Every process has 3 default file handles and descriptor:
+
+| file descriptor number | name   | meaning                                                      |
+| ---------------------- | ------ | ------------------------------------------------------------ |
+| 0                      | Stdin  | stream from which a program reads its input data             |
+| 1                      | Stdout | stream to which a program writes its output data             |
+| 2                      | Stderr | another output stream typically used by programs to output error messages |
+
+So if we can connect the command's Stdout to the next command's Stdin, the pipeline will be implemented. 
+
+In terms of specific implementation, our current consideration is achieved through the pipe method in the C header file unistd.h. Since SylixOS conforms to the POSIX standard, unistd.h should be a usable header file, and the pipe() system call can create a pipe. We then redirect the standard output in the process where the previous command is located to the pipe entry, Redirect the standard input of the latter command to the exit.
+
+But the current difficulty is that it does not directly use fork, dup2 and other system calls, and it also encapsulates exec calls, so it cannot be easily achieved through processes such as pipe, fork, exec, dup2. In our current opinion, it may be necessary to further understand the source code, debug the virtual machine, explore and try.
+
+## Expected goals
+
+### Pipeline
+
+Pipeline is a very important function in the implementation of the shell, as the wiki says, "Streams may be used to chain applications, meaning that the output stream of one program can be redirected to be the input stream to another application. In many operating systems this is expressed by listing the application names, separated by the vertical bar character, for this reason often called the [pipeline](https://en.wikipedia.org/wiki/Pipeline_(Unix)) character. " 
+
+And in bash's design, A pipeline is a sequence of one or more commands separated by one of the control operators ‘|’ or ‘|&’, whose format is:
 
 ```
 [time [-p]] [!] command1 [ | or |& command2 ] ...
@@ -98,7 +121,7 @@ cat test.sh test1.sh 2>null | grep -n 'echo'
 
 In particular,  '|&' means that in addition to command1's standard output, its standard error is connected to command2's standard input through pipe. It is short for 2>&1|.
 
-So what we want to realize is a pipeline mechanism like bash which connect output of the command to the next command, including '|' and '|&'. But for the 'time' segment mentioned above, which is not realized in SylixOS now, we do not guarantee to implement it, because it is not part of pipeline. 
+In SylixOS, redirection has been implemented, but the pipeline part has not been yet. So what we want to realize is a pipeline mechanism like bash which connect output of the command to the next command, including '|' and '|&'. But for the 'time' segment mentioned above, which is not realized in SylixOS now, we do not guarantee to implement it, because it is not part of pipeline. 
 
 ## Division of Labors
 
@@ -106,6 +129,6 @@ So what we want to realize is a pipeline mechanism like bash which connect outpu
 
 1. `SylixOS_application_usermanual.pdf`
 2. `SylixOS shell 增强开发指导文档.docx`
-
-3. https://en.wikipedia.org/wiki/Operating_system
-4. 
+3. https://en.wikipedia.org/wiki/Standard_streams
+4. https://en.wikipedia.org/wiki/Operating_system
+5. http://www.gnu.org/software/bash/manual/
