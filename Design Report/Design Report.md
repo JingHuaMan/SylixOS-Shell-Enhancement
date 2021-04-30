@@ -121,6 +121,19 @@ In particular,  '|&' means that in addition to command1's standard output, its s
 
 In SylixOS, redirection has been implemented, but the pipeline part has not been yet. So what we want to realize is a pipeline mechanism like bash which connect output of the command to the next command, including '|' and '|&'. But for the 'time' segment mentioned above, which is not realized in SylixOS now, we do not guarantee to implement it, because it is not part of pipeline. 
 
+### Shell Execution Enhancement
+
+Linux shell provide convenient functions like **grep**, **find**. In addition, mordern shell script interpreters provide schema supporting complex branching control behaviors, for example, parse and interpret **if** ,**while** and **for** statements.</br>
+SylixOS also has its shell script interpreter. Unfortunately, it does not support **grep**, **find** and some other basic commands or complex branching control behaviors. Its recognition capability of shell syntax patterns is also deficient. The following command runs correctly but produces an error on SylixOS due to its extra blank space:</br>
+
+```
+ls > 1.txt
+```
+
+Our goal is to improve the shell programming capacity. First to implement simple functions like **grep** and **find**, and combine them with pipe schema.</br>
+**If possible:** Support regular expression inputs in **grep**, **find** and other commands like Linux do. </br>
+**If possible:** We will implement a more powerful shell interpreter supports complex branching control behaviors.
+
 ## Implementation
 
 ### Auto Completion
@@ -210,6 +223,17 @@ In terms of specific implementation, our current consideration is achieved throu
 
 But the current difficulty is that it does not directly use fork, dup2 and other system calls, and it also encapsulates exec calls, so it cannot be easily achieved through processes such as pipe, fork, exec, dup2. In our current opinion, it may be necessary to further understand the source code, debug the virtual machine, explore and try.
 
+### Shell Execution Enhancement
+
+**grep** and **find** functions receive strings from command line argument and then process them. To implement these function, we shall use the command register function provided by SylixOS:</br>
+
+```c
+VOID tmInstallCmd(VOID);
+```
+
+It enables us to add functions without performing invasive changes on SylixOS's kernel, which is suitable for simple functions like **grep**.</br>
+Unfortunately, we did not find the source code of its original shell interpreter in the whole source code, and none of us has expierence on implementing interpreter for script languages. Therefore, enhancing branching control behaviors would be extremely difficult.
+
 ## Division of Labors
 | Name   | Labor           |
 | ------ | --------------- |
@@ -219,12 +243,12 @@ But the current difficulty is that it does not directly use fork, dup2 and other
 
 ## Time Schedule
 
-| Week | Task               |
-| ---- | ------------------ |
-| 12   | auto-completion    |
-| 13   | pipe               |
-| 14   | pipe, split-screen |
-| 15   | split-screen       |
+| Week | Task                  |
+| ---- | --------------------- |
+| 12   | auto-completion       |
+| 13   | pipe                  |
+| 14   | pipe, shell execution |
+| 15   | shell execution       |
 
 ## Reference
 
