@@ -1,0 +1,14 @@
+1: the following file should add !(SYLIXOS)
+   entropy_poll.c
+   net_sockets.c
+   timing.c
+   
+2: config.h add MBEDTLS_MD2_C, MBEDTLS_MD4_C
+                MBEDTLS_THREADING_PTHREAD MBEDTLS_THREADING_C
+
+3: ecp.c -> ecp_mbed.c
+
+4: Add LW_CFG_LWIP_TLS_SNI_DEF configure in ssl_srv.c file.
+
+5: Add mbedtls_ssl_get_bio() function ssl_tls.c, ssl.h files.
+
