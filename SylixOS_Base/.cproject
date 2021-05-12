@@ -27,4 +27,5 @@
 		<pathentry excluding="obj|dep" kind="out" path="libcextern/Debug"/>
 		<pathentry excluding="obj|dep" kind="out" path="libcextern/Release"/>
 	</storageModule>
+	<storageModule moduleId="org.eclipse.cdt.make.core.buildtargets"/>
 </cproject>

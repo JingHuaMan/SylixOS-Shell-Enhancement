@@ -603,6 +603,9 @@ static VOID  __tshellFileMatch (INT  iFd, PCHAR  pcDir, PCHAR  pcFileName,
 #define __TSHELL_BYTES_PERLINE          80                              /*  单行 80 字符                */
 #define __TSHELL_BYTES_PERFILE          16                              /*  每个文件名显示格长度        */
 
+    //DEBUG
+//    printf("\bENTER FILE MATCH !!!\n");
+
     UINT             uiMath = 0;
     BOOL             bMathPrint = LW_FALSE;
     
@@ -627,7 +630,8 @@ static VOID  __tshellFileMatch (INT  iFd, PCHAR  pcDir, PCHAR  pcFileName,
     size_t           stMinSimilar = 0;
     size_t           stSimilar;
     
-    
+    printf("pcDir: %s\npcFileName: %s\n", pcDir, pcFileName);
+
     if (*pcDir == '~') {                                                /*  需要使用 HOME 目录替代      */
         if (API_TShellGetUserHome(getuid(), cHome, 
                                   MAX_FILENAME_LENGTH) == ERROR_NONE) {
@@ -708,7 +712,7 @@ __print_dirent:
                     }
                 
                 } else {
-                    direntcMatch = *pdirent;                            /*  记录第一次 math 的节点      */
+                    direntcMatch = *pdirent;                            /*  记录第一次 match 的节点      */
                     stMinSimilar = lib_strlen(pdirent->d_name);
                 }
             }
@@ -760,6 +764,121 @@ __print_dirent:
     }
 }
 /*********************************************************************************************************
+** 函数名称: __tshellKeywordMatch
+** 功能描述: shell 根据当前输入情况匹配关键字.
+** 输　入  :    iFd                           文件描述符
+**           pcDir                         文件夹
+**           psicContext                   当前输入上下文
+** 输　出  : NONE
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+static VOID  __tshellKeywordMatch (INT  iFd, PCHAR  pcKeyword, __PSHELL_INPUT_CTX  psicContext)
+{
+#define __KEYWORD_BUFF_SIZE         20
+#define __TSHELL_BYTES_PERKEYWORD   __TSHELL_BYTES_PERFILE
+
+    BOOL                            printFirst = LW_FALSE;
+    INT                             numMatch = 0;
+    REGISTER INT                    i;
+    REGISTER ULONG                  ulGetNum;
+
+    size_t                          stSimilar, stPrintLen, stPad, tempSimilar, minSimilar;
+    size_t                          stTotalLen = 0;
+    size_t                          currentLen = lib_strlen(pcKeyword);
+
+    __PTSHELL_KEYWORD               pskwNodeStart = LW_NULL;
+    __PTSHELL_KEYWORD               pskwNode[__KEYWORD_BUFF_SIZE];
+
+    struct winsize                  winsz;
+
+    PCHAR                           minSimilarKeyword, firstKeyword, keywordToBePrint;
+
+    if (ioctl(STD_OUT, TIOCGWINSZ, &winsz)) {                           /*  获得窗口信息                */
+        winsz.ws_col = __TSHELL_BYTES_PERLINE;
+    } else {
+        winsz.ws_col = (unsigned short)ROUND_DOWN(winsz.ws_col, __TSHELL_BYTES_PERFILE);
+    }
+
+    API_TShellColorStart2(LW_TSHELL_COLOR_GREEN, STD_OUT);
+
+    do {
+        ulGetNum = __tshellKeywordList(pskwNodeStart, pskwNode, (INT)__KEYWORD_BUFF_SIZE);
+        for (i = 0; i < ulGetNum; i++) {
+            stSimilar = __similarLen(pcKeyword, pskwNode[i]->SK_pcKeyword);
+
+            if (stSimilar == currentLen) {
+
+                if (numMatch++ == 0) {
+                    firstKeyword = pskwNode[i]->SK_pcKeyword;
+                    minSimilar = lib_strlen(firstKeyword);
+                    minSimilarKeyword = firstKeyword;
+                } else {
+                    if (numMatch == 2) {
+                        printf("\n");
+                    }
+
+                    tempSimilar = __similarLen(minSimilarKeyword, pskwNode[i]->SK_pcKeyword);
+
+                    if (tempSimilar < minSimilar) {
+                        minSimilar = tempSimilar;
+                        minSimilarKeyword = pskwNode[i]->SK_pcKeyword;
+                    }
+
+                    keywordToBePrint = pskwNode[i]->SK_pcKeyword;
+
+__print_keyword:
+                    stPrintLen = printf("%-15s ", keywordToBePrint);
+                    if (stPrintLen > __TSHELL_BYTES_PERFILE) {
+                        stPad = ROUND_UP(stPrintLen, __TSHELL_BYTES_PERFILE)
+                              - stPrintLen;                             /*  计算填充数量                */
+                        __fillWhite(stPad);
+                    } else {
+                        stPad = 0;
+                    }
+
+                    stTotalLen += stPrintLen + stPad;
+                    if (stTotalLen >= winsz.ws_col) {
+                        printf("\n");                                   /*  换行                        */
+                        stTotalLen = 0;
+                    }
+
+                    if (numMatch == 2 && !printFirst) {
+                        printFirst = LW_TRUE;
+                        keywordToBePrint = firstKeyword;
+                        goto __print_keyword;
+                    }
+                }
+            }
+        }
+
+        pskwNodeStart = pskwNode[ulGetNum - 1];
+    } while ((ulGetNum == __KEYWORD_BUFF_SIZE) && (pskwNodeStart != LW_NULL));
+
+    API_TShellColorEnd(STD_OUT);
+
+    if (numMatch == 1) {
+        size_t catLen = lib_strlen(firstKeyword) - currentLen;
+        write(iFd, &firstKeyword[currentLen], catLen);
+        lib_strlcat(CTX_BUFFER, &firstKeyword[currentLen], LW_CFG_SHELL_MAX_COMMANDLEN);
+        CTX_TOTAL += (UINT)catLen;
+        CTX_CURSOR = CTX_TOTAL;
+    } else if (numMatch > 1) {
+        if (stTotalLen) {
+            printf("\n");
+        }
+        __tshellShowPrompt();
+
+        if (minSimilar > currentLen) {
+            lib_strcpy(CTX_BUFFER, (CPCHAR)minSimilarKeyword);
+            CTX_BUFFER[minSimilar] = PX_EOS;
+            CTX_TOTAL  = minSimilar;
+            CTX_CURSOR = CTX_TOTAL;
+        }
+        write(iFd, CTX_BUFFER, CTX_TOTAL);
+    }
+}
+/*********************************************************************************************************
 ** 函数名称: __tshellCharTab
 ** 功能描述: shell 收到一个 tab 按键.
 ** 输　入  : iFd                           文件描述符
@@ -774,6 +893,9 @@ static VOID  __tshellCharTab (INT  iFd, __PSHELL_INPUT_CTX  psicContext)
         ((*(pcCmd) == ' ') || (*(pcCmd) == '\t') || (*(pcCmd) == '\r') || (*(pcCmd) == '\n'))
 
 #define __TTINY_SHELL_CMD_ISEND(pcCmd)      (*(pcCmd) == PX_EOS)
+
+    //DEBUG
+//        printf("\nENTER TAB !!\n");
 
              INT         i;
              PCHAR       pcCmd;
@@ -837,6 +959,11 @@ static VOID  __tshellCharTab (INT  iFd, __PSHELL_INPUT_CTX  psicContext)
         return;
     }
     
+    if (i == 0) {                                                       /*  只有一个字段时                 */
+        __tshellKeywordMatch(iFd, pcDir, psicContext);
+        return;                                                         /*  在本来的逻辑中，也只能通过"./xxxx"的方式运行可执行文件，所以第一个词必须是关键字    */
+    }
+
     if (lib_strlen(pcDir) == 0) {                                       /*  没有内容, 当前目录          */
         pcDir = ".";
         pcFileName = "";
