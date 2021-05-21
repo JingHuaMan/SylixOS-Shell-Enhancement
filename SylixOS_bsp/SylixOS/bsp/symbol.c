@@ -14,7 +14,7 @@
 **														
 ** 创   建   人: makesymbol 工具						
 **														
-** 文件创建日期: 2021 年 05 月 13 日			
+** 文件创建日期: 2021 年 05 月 20 日			
 **														
 ** 描        述: 系统 sylixos 符号表. (此文件由 makesymbol 工具自动生成, 请勿修改)	
 *********************************************************************************************************/	
@@ -2782,6 +2782,9 @@ extern int  API_ThreadOnce();
 extern int  API_ThreadOnce2(); 
 extern int  _Tree_Rb_Erase(); 
 extern int  _Tree_Rb_Insert_Color(); 
+extern int  __trie_insert(); 
+extern int  __trie_node_validate(); 
+extern int  __trie_search(); 
 extern int  __pageAllocate(); 
 extern int  __pageAllocateAlign(); 
 extern int  __pageCbInit(); 
@@ -5806,6 +5809,7 @@ extern int  __tshellUndef();
 extern int  __tshellHistoryBackup(); 
 extern int  __tshellReadline(); 
 extern int  __tshellReadlineClean(); 
+extern int  __tshellRefreshHistory(); 
 extern int  __tshellSysCmdInit(); 
 extern int  __tshellSysVarInit(); 
 extern int  __tshellStrConvertVar(); 
@@ -10037,6 +10041,9 @@ SYMBOL_TABLE_BEGIN
     SYMBOL_ITEM_FUNC(API_ThreadOnce2) 
     SYMBOL_ITEM_FUNC(_Tree_Rb_Erase) 
     SYMBOL_ITEM_FUNC(_Tree_Rb_Insert_Color) 
+    SYMBOL_ITEM_FUNC(__trie_insert) 
+    SYMBOL_ITEM_FUNC(__trie_node_validate) 
+    SYMBOL_ITEM_FUNC(__trie_search) 
     SYMBOL_ITEM_FUNC(__pageAllocate) 
     SYMBOL_ITEM_FUNC(__pageAllocateAlign) 
     SYMBOL_ITEM_FUNC(__pageCbInit) 
@@ -13061,6 +13068,7 @@ SYMBOL_TABLE_BEGIN
     SYMBOL_ITEM_FUNC(__tshellHistoryBackup) 
     SYMBOL_ITEM_FUNC(__tshellReadline) 
     SYMBOL_ITEM_FUNC(__tshellReadlineClean) 
+    SYMBOL_ITEM_FUNC(__tshellRefreshHistory) 
     SYMBOL_ITEM_FUNC(__tshellSysCmdInit) 
     SYMBOL_ITEM_FUNC(__tshellSysVarInit) 
     SYMBOL_ITEM_FUNC(__tshellStrConvertVar) 

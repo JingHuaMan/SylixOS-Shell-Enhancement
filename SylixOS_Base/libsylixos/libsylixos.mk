@@ -1190,6 +1190,7 @@ SylixOS/kernel/threadext/ThreadCleanup.c \
 SylixOS/kernel/threadext/ThreadCond.c \
 SylixOS/kernel/threadext/ThreadOnce.c \
 SylixOS/kernel/tree/treeRb.c \
+SylixOS/kernel/tree/trie.c \
 SylixOS/kernel/vmm/pageLib.c \
 SylixOS/kernel/vmm/pageTable.c \
 SylixOS/kernel/vmm/phyPage.c \

@@ -1386,6 +1386,8 @@ __reauthen:
             
             iRetValue = API_TShellExec(cRecvBuffer);                    /*  Ö´ÐÐ shell Ö¸Áî             */
 
+            __tshellRefreshHistory(0, cRecvBuffer, iTotalNum, iRetValue);
+
 #if LW_CFG_SHELL_HOOK_EN > 0
             if ((iRetValue == -ERROR_TSHELL_CMDNOTFUND) && _G_pfuncShellHook) {
                 LW_SOFUNC_PREPARE(_G_pfuncShellHook);
