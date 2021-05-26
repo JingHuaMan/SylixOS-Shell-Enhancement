@@ -605,6 +605,9 @@ static INT  __tshellFsCmdLs (INT  iArgC, PCHAR  ppcArgV[])
 #define __TSHELL_BYTES_PERLINE          80                              /*  单行 80 字符                */
 #define __TSHELL_BYTES_PERFILE          16                              /*  每个文件名显示格长度        */
 
+             INT             index;
+             BOOL            isAll = LW_FALSE;
+             BOOL            dirInitialized = LW_FALSE;
              CHAR            cDirName[MAX_FILENAME_LENGTH] = ".";
              size_t          stDirLen = 1;
     
@@ -618,23 +621,32 @@ static INT  __tshellFsCmdLs (INT  iArgC, PCHAR  ppcArgV[])
              size_t          stTotalLen = 0;
              size_t          stPrintLen;
              size_t          stPad;
-             
-    if ((iArgC > 1) && (lib_strcmp(ppcArgV[1], "-l") == 0)) {
-        printf("you can use 'll' command.\n");
-        return  (ERROR_NONE);
-    }
-    
-    if ((iArgC == 2) && lib_strcmp(ppcArgV[1], ".")) {                  /*  指定目录                    */
-        lib_strcpy(cDirName, ppcArgV[1]);
-        stDirLen = lib_strlen(cDirName);
-        pdir     = opendir(cDirName);
-        if (stDirLen > 0) {
-            if (cDirName[stDirLen - 1] != PX_DIVIDER) {                 /*  参数目录不是以 / 结尾       */
-                cDirName[stDirLen++] = PX_DIVIDER;                      /*  添加一个 /                  */
+
+    for (index = 1; index < iArgC; index++) {
+        if (lib_strcmp(ppcArgV[index], "-l") == 0) {
+            printf("you can use 'll' command.\n");
+            return  (ERROR_NONE);
+        } else if (lib_strcmp(ppcArgV[index], "-a") == 0 ||
+                   lib_strcmp(ppcArgV[index], "--all") == 0) {
+            isAll    = LW_TRUE;
+        } else if (lib_strcmp(ppcArgV[index], "-all")) {
+            printf("do you mean --all?\n");
+            return  (ERROR_NONE);
+        } else if (lib_strcmp(ppcArgV[index], ".")) {
+            dirInitialized = LW_TRUE;
+            lib_strcpy(cDirName, ppcArgV[1]);
+            stDirLen = lib_strlen(cDirName);
+            pdir     = opendir(cDirName);
+            if (stDirLen > 0) {
+                if (cDirName[stDirLen - 1] != PX_DIVIDER) {                 /*  参数目录不是以 / 结尾       */
+                    cDirName[stDirLen++] = PX_DIVIDER;                      /*  添加一个 /          */
+                }
             }
         }
-    } else {
-        pdir = opendir(cDirName);                                       /*  当前目录                    */
+    }
+
+    if (!dirInitialized) {
+        pdir = opendir(cDirName);                                           /*  当前目录                    */
     }
     
     if (!pdir) {
@@ -674,21 +686,23 @@ static INT  __tshellFsCmdLs (INT  iArgC, PCHAR  ppcArgV[])
                 statGet.st_mode = DTTOIF(pdirent->d_type);
             }
             
-            API_TShellColorStart(pdirent->d_name, "", statGet.st_mode, STD_OUT);
-            stPrintLen = printf("%-15s ", pdirent->d_name);             /*  打印文件名                  */
-            if (stPrintLen > __TSHELL_BYTES_PERFILE) {
-                stPad = ROUND_UP(stPrintLen, __TSHELL_BYTES_PERFILE)
-                      - stPrintLen;                                     /*  计算填充数量                */
-                __fillWhite(stPad);
-            } else {
-                stPad = 0;
-            }
-            stTotalLen += stPrintLen + stPad;
-            API_TShellColorEnd(STD_OUT);
-            
-            if (stTotalLen >= winsz.ws_col) {
-                printf("\n");                                           /*  换行                        */
-                stTotalLen = 0;
+            if (isAll || *(pdirent->d_name) != '.') {
+                API_TShellColorStart(pdirent->d_name, "", statGet.st_mode, STD_OUT);
+                stPrintLen = printf("%-15s ", pdirent->d_name);             /*  打印文件名                  */
+                if (stPrintLen > __TSHELL_BYTES_PERFILE) {
+                    stPad = ROUND_UP(stPrintLen, __TSHELL_BYTES_PERFILE)
+                          - stPrintLen;                                     /*  计算填充数量                */
+                    __fillWhite(stPad);
+                } else {
+                    stPad = 0;
+                }
+                stTotalLen += stPrintLen + stPad;
+                API_TShellColorEnd(STD_OUT);
+
+                if (stTotalLen >= winsz.ws_col) {
+                    printf("\n");                                           /*  换行                        */
+                    stTotalLen = 0;
+                }
             }
         }
     } while (1);
@@ -1245,6 +1259,9 @@ static VOID __tshellFsShowFile (CPCHAR  pcFileName, PCHAR  pcStat, struct stat  
 *********************************************************************************************************/
 static INT  __tshellFsCmdLl (INT  iArgC, PCHAR  ppcArgV[])
 {
+             INT             index;
+             BOOL            isAll = LW_FALSE;
+             BOOL            dirInitialized = LW_FALSE;
              PCHAR           pcStat;
              CHAR            cDirName[MAX_FILENAME_LENGTH] = ".";
              size_t          stDirLen = 1;
@@ -1255,27 +1272,39 @@ static INT  __tshellFsCmdLl (INT  iArgC, PCHAR  ppcArgV[])
              
              INT             iError;
              INT             iItemNum = 0;
-    
-    if ((iArgC == 2) && lib_strcmp(ppcArgV[1], ".")) {                  /*  指定目录                    */
-        lib_strcpy(cDirName, ppcArgV[1]);
-        if (stat(cDirName, &statGet) == ERROR_NONE) {
-            if (!S_ISDIR(statGet.st_mode)) {                            /*  不是目录                    */
-                PCHAR   pcFile;
-                _PathLastName(cDirName, &pcFile);
-                __tshellFsShowFile(pcFile, pcFile, &statGet);
-                iItemNum = 1;
-                goto    __display_over;
+
+    for (index = 1; index < iArgC; index++) {
+        if (lib_strcmp(ppcArgV[index], "-a") == 0 ||
+            lib_strcmp(ppcArgV[index], "--all") == 0) {
+            isAll    = LW_TRUE;
+        } else if (lib_strcmp(ppcArgV[index], "-all")) {
+            printf("do you mean --all?\n");
+            return  (ERROR_NONE);
+        } else if (lib_strcmp(ppcArgV[index], ".")) {
+            dirInitialized = LW_TRUE;
+            lib_strcpy(cDirName, ppcArgV[1]);
+            if (stat(cDirName, &statGet) == ERROR_NONE) {
+                if (!S_ISDIR(statGet.st_mode)) {                            /*  不是目录                    */
+                    PCHAR   pcFile;
+                    _PathLastName(cDirName, &pcFile);
+                    __tshellFsShowFile(pcFile, pcFile, &statGet);
+                    iItemNum = 1;
+                    goto    __display_over;
+                }
+            }
+
+            stDirLen = lib_strlen(cDirName);
+            pdir     = opendir(cDirName);
+            if (stDirLen > 0) {
+                if (cDirName[stDirLen - 1] != PX_DIVIDER) {                 /*  参数目录不是以 / 结尾       */
+                    cDirName[stDirLen++] = PX_DIVIDER;                      /*  添加一个 /                  */
+                }
             }
         }
-        
-        stDirLen = lib_strlen(cDirName);
-        pdir     = opendir(cDirName);
-        if (stDirLen > 0) {
-            if (cDirName[stDirLen - 1] != PX_DIVIDER) {                 /*  参数目录不是以 / 结尾       */
-                cDirName[stDirLen++] = PX_DIVIDER;                      /*  添加一个 /                  */
-            }
-        }
-    } else {
+
+    }
+
+    if (!dirInitialized) {
         pdir = opendir(cDirName);                                       /*  当前目录                    */
     }
     
@@ -1320,9 +1349,11 @@ static INT  __tshellFsCmdLl (INT  iArgC, PCHAR  ppcArgV[])
                 statGet.st_ctime   = API_RootFsTime(LW_NULL);
             }
             
-            __tshellFsShowFile(pdirent->d_name, pcStat, &statGet);
+            if (isAll || *(pdirent->d_name) != '.') {
+                __tshellFsShowFile(pdirent->d_name, pcStat, &statGet);
             
-            iItemNum++;
+                iItemNum++;
+            }
         }
     } while (1);
     
@@ -2369,11 +2400,11 @@ VOID  __tshellFsCmdInit (VOID)
     API_TShellHelpAdd("touch", "touch a file\n");
     
     API_TShellKeywordAdd("ls", __tshellFsCmdLs);
-    API_TShellFormatAdd("ls", " [path name]");
+    API_TShellFormatAdd("ls", " [path name [-a/--all [-l]]]");
     API_TShellHelpAdd("ls", "list file(s)\n");
     
     API_TShellKeywordAdd("ll", __tshellFsCmdLl);
-    API_TShellFormatAdd("ll", " [path name]");
+    API_TShellFormatAdd("ll", " [path name [-a/--all [-l]]]");
     API_TShellHelpAdd("ll", "get file(s) attrib\n");
     
     API_TShellKeywordAdd("dsize", __tshellFsCmdDsize);
