@@ -26,7 +26,7 @@
 #include "symboltools.h"								
 														
 #ifdef SYLIXOS_EXPORT_KSYMBOL							
-#define SYM_TABLE_SIZE 7260							
+#define SYM_TABLE_SIZE 7262							
 extern  LW_STATIC_SYMBOL  _G_symLibSylixOS[SYM_TABLE_SIZE];					
 															
 static LW_INLINE  INT symbolAddAll (VOID)				

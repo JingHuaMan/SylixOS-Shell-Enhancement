@@ -5810,11 +5810,13 @@ extern int  __tshellShowPrompt();
 extern int  __tshellThread(); 
 extern int  __tshellThreadHook(); 
 extern int  __tshellUndef(); 
+extern int  __thsellLoadHistoryTrie(); 
 extern int  __tshellAfterExecution(); 
 extern int  __tshellBeforeExecution(); 
 extern int  __tshellHistoryBackup(); 
 extern int  __tshellReadline(); 
 extern int  __tshellReadlineClean(); 
+extern int  __tshellRefreshHistoryTrie(); 
 extern int  __tshellSysCmdInit(); 
 extern int  __tshellSysVarInit(); 
 extern int  __tshellStrConvertVar(); 
@@ -13074,11 +13076,13 @@ SYMBOL_TABLE_BEGIN
     SYMBOL_ITEM_FUNC(__tshellThread) 
     SYMBOL_ITEM_FUNC(__tshellThreadHook) 
     SYMBOL_ITEM_FUNC(__tshellUndef) 
+    SYMBOL_ITEM_FUNC(__thsellLoadHistoryTrie) 
     SYMBOL_ITEM_FUNC(__tshellAfterExecution) 
     SYMBOL_ITEM_FUNC(__tshellBeforeExecution) 
     SYMBOL_ITEM_FUNC(__tshellHistoryBackup) 
     SYMBOL_ITEM_FUNC(__tshellReadline) 
     SYMBOL_ITEM_FUNC(__tshellReadlineClean) 
+    SYMBOL_ITEM_FUNC(__tshellRefreshHistoryTrie) 
     SYMBOL_ITEM_FUNC(__tshellSysCmdInit) 
     SYMBOL_ITEM_FUNC(__tshellSysVarInit) 
     SYMBOL_ITEM_FUNC(__tshellStrConvertVar) 

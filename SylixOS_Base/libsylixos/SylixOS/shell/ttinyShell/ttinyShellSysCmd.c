@@ -70,6 +70,7 @@
 #define  __SYLIXOS_KERNEL
 #include "limits.h"
 #include "unistd.h"
+#include "../SylixOS/shell/ttinyShell/ttinyShellReadline.h"
 /*********************************************************************************************************
   裁剪控制
 *********************************************************************************************************/
@@ -95,6 +96,48 @@
 #if (LW_CFG_CDUMP_EN > 0) && (LW_CFG_DEVICE_EN > 0)
 #include "time.h"
 #endif
+/*********************************************************************************************************
+** 函数名称: __tshellFsCmdClearhistory
+** 功能描述: 自制命令 "clearhistory"
+** 输　入  : iArgC         参数个数
+**           ppcArgV       参数表
+** 输　出  : 0
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+static INT  __tshellFsCmdClearhistory (INT  iArgC, PCHAR  ppcArgV[])
+{
+    __tshellRefreshHistoryTrie();
+    printf("clear history successfully!\n");
+
+    return (ERROR_NONE);
+}
+/*********************************************************************************************************
+** 函数名称: __tshellFsCmdLoadhistory
+** 功能描述: 自制命令 "loadhistory"
+** 输　入  : iArgC         参数个数
+**           ppcArgV       参数表
+** 输　出  : 0
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+static INT  __tshellFsCmdLoadhistory (INT  iArgC, PCHAR  ppcArgV[])
+{
+    if (iArgC == 1) {
+        printf("you should input the file name.\n");
+        return (ERROR_NONE);
+    }
+
+    FILE *historyFile = fopen(ppcArgV[1], "rb");
+    if (historyFile) {
+        __thsellLoadHistoryTrie(historyFile);
+        printf("load history file successfully!\n");
+    } else {
+        printf("cannot open file!.\n");
+    }
+
+    return (ERROR_NONE);
+}
 /*********************************************************************************************************
 ** 函数名称: __tshellSysCmdArgs
 ** 功能描述: 系统命令 "args"
@@ -3038,6 +3081,14 @@ VOID  __tshellSysCmdInit (VOID)
     API_TShellHelpAdd("crashtrap",   "set or get process crash trap setting.\n"
                                      "if enable, the process crash will not be killed but waiting for debugger.\n");
 #endif                                                                  /*  LW_CFG_GDB_EN > 0           */
+
+    API_TShellKeywordAdd("clearhistory", __tshellFsCmdClearhistory);
+    API_TShellHelpAdd("clearhistory", "clear and refresh the history tree of shell inputs.\n");
+
+    API_TShellKeywordAdd("loadhistory", __tshellFsCmdLoadhistory);
+    API_TShellFormatAdd("loadhistory", " [file name]");
+    API_TShellHelpAdd("loadhistory", " load a history recording file to replace the current history trie.\n");
+
 }
 
 #endif                                                                  /*  LW_CFG_SHELL_EN > 0         */

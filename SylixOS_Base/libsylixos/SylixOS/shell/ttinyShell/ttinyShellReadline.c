@@ -107,7 +107,6 @@ static LW_LIST_LINE_HEADER       _K_plineShellHisc;
 static PLW_TRIE_NODE             _historyTrieRoot = LW_NULL;
 static int                       _lastMatchLength;
 static PCHAR                     _lastMatch;
-//#define HISTORY_FILENAME         "/etc/"
 /*********************************************************************************************************
   打印用
 *********************************************************************************************************/
@@ -129,7 +128,13 @@ static VOID __tshellInitHistoryTrie()
         return;
     }
 
-    FILE *historyFile = fopen("~/.shellHistory", "rb");
+    CHAR username[MAX_FILENAME_LENGTH];
+    CHAR filename[MAX_FILENAME_LENGTH];
+
+    API_TShellGetUserName(getuid(), username, MAX_FILENAME_LENGTH);
+    sprintf(filename, "/etc/.%s_shell_history", username);
+
+    FILE *historyFile = fopen(filename, "rb");
     if (historyFile) {
         _historyTrieRoot = __trieFromFile(historyFile);
         fclose(historyFile);
@@ -150,7 +155,13 @@ static VOID __tshellInitHistoryTrie()
 *********************************************************************************************************/
 static VOID __tshellBackupHistoryTrie()
 {
-    FILE *historyFile = fopen("~/.shellHistory", "wb");
+    CHAR username[MAX_FILENAME_LENGTH];
+    CHAR filename[MAX_FILENAME_LENGTH];
+
+    API_TShellGetUserName(getuid(), username, MAX_FILENAME_LENGTH);
+    sprintf(filename, "/etc/.%s_shell_history", username);
+
+    FILE *historyFile = fopen(filename, "wb");
     if (historyFile) {
         __trieToFile(_historyTrieRoot, historyFile);
         fclose(historyFile);
@@ -763,6 +774,44 @@ VOID __tshellAfterExecution(PVOID  pcBuffer, size_t  stSize, INT returnValue)
     if (returnValue == 0) {
         __trieInsert(_historyTrieRoot, pcBuffer, stSize);        /*  插入前缀树                       */
     }
+}
+/*********************************************************************************************************
+** 函数名称: __tshellRefreshHistoryTrie
+** 功能描述: 供指令"clearhistory"使用
+** 输　入  : NONE
+** 输　出  : NONE
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+VOID __tshellRefreshHistoryTrie(VOID)
+{
+    CHAR username[MAX_FILENAME_LENGTH];
+    CHAR filename[MAX_FILENAME_LENGTH];
+
+    API_TShellGetUserName(getuid(), username, MAX_FILENAME_LENGTH);
+    sprintf(filename, "/etc/.%s_shell_history", username);
+
+    remove(filename);
+    __trieDelete(_historyTrieRoot);
+    _historyTrieRoot = __trieGetRoot();
+    __SHEAP_FREE(_lastMatch);
+    _lastMatchLength = 0;
+}
+/*********************************************************************************************************
+** 函数名称: __thsellLoadHistoryTrie
+** 功能描述: 供指令"loadhistory"使用
+** 输　入  : file          存储了历史记录的文件
+** 输　出  : NONE
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+VOID __thsellLoadHistoryTrie(FILE *file)
+{
+    __trieDelete(_historyTrieRoot);
+    __SHEAP_FREE(_lastMatch);
+    _lastMatchLength = 0;
+
+    _historyTrieRoot = __trieFromFile(file);
 }
 /*********************************************************************************************************
 ** 函数名称: __tshellFileMatch
