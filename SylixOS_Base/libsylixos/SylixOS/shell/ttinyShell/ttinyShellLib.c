@@ -1333,7 +1333,7 @@ __reauthen:
     ioctl(iTtyFd, FIOABORTARG,  API_ThreadIdSelf());                    /*  control-C 参数              */
     ioctl(iTtyFd, FIOABORTFUNC, __tshellRestart);                       /*  control-C 行为              */
     ioctl(iTtyFd, FIOGETCC, cCtrl);                                     /*  获得控制字符                */
-    
+
     for (;;) {
         if (bIsCommandOver) {                                           /*  单条命令结束后发送命令提示符*/
             __tshellShowPrompt();                                       /*  显示命令提示符              */
@@ -1384,9 +1384,11 @@ __reauthen:
             optind   = 1;                                               /*  确保 getopt() 执行正确      */
             optreset = 1;
             
+            __tshellBeforeExecution(STD_OUT);
+
             iRetValue = API_TShellExec(cRecvBuffer);                    /*  执行 shell 指令             */
 
-            __tshellRefreshHistory(0, cRecvBuffer, iTotalNum, iRetValue);
+            __tshellAfterExecution(cRecvBuffer, iTotalNum, iRetValue);
 
 #if LW_CFG_SHELL_HOOK_EN > 0
             if ((iRetValue == -ERROR_TSHELL_CMDNOTFUND) && _G_pfuncShellHook) {
@@ -1434,7 +1436,7 @@ __reauthen:
         iTotalNum      = 0;
         bIsCommandOver = LW_TRUE;
     }
-    
+
     return  (LW_NULL);
 }
 /*********************************************************************************************************

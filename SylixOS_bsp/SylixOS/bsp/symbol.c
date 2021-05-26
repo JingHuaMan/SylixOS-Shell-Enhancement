@@ -14,7 +14,7 @@
 **														
 ** 创   建   人: makesymbol 工具						
 **														
-** 文件创建日期: 2021 年 05 月 20 日			
+** 文件创建日期: 2021 年 05 月 26 日			
 **														
 ** 描        述: 系统 sylixos 符号表. (此文件由 makesymbol 工具自动生成, 请勿修改)	
 *********************************************************************************************************/	
@@ -2782,9 +2782,13 @@ extern int  API_ThreadOnce();
 extern int  API_ThreadOnce2(); 
 extern int  _Tree_Rb_Erase(); 
 extern int  _Tree_Rb_Insert_Color(); 
-extern int  __trie_insert(); 
-extern int  __trie_node_validate(); 
-extern int  __trie_search(); 
+extern int  __trieDelete(); 
+extern int  __trieFromFile(); 
+extern int  __trieGetRoot(); 
+extern int  __trieInsert(); 
+extern int  __trieNodeValidate(); 
+extern int  __trieSearch(); 
+extern int  __trieToFile(); 
 extern int  __pageAllocate(); 
 extern int  __pageAllocateAlign(); 
 extern int  __pageCbInit(); 
@@ -5806,10 +5810,11 @@ extern int  __tshellShowPrompt();
 extern int  __tshellThread(); 
 extern int  __tshellThreadHook(); 
 extern int  __tshellUndef(); 
+extern int  __tshellAfterExecution(); 
+extern int  __tshellBeforeExecution(); 
 extern int  __tshellHistoryBackup(); 
 extern int  __tshellReadline(); 
 extern int  __tshellReadlineClean(); 
-extern int  __tshellRefreshHistory(); 
 extern int  __tshellSysCmdInit(); 
 extern int  __tshellSysVarInit(); 
 extern int  __tshellStrConvertVar(); 
@@ -10041,9 +10046,13 @@ SYMBOL_TABLE_BEGIN
     SYMBOL_ITEM_FUNC(API_ThreadOnce2) 
     SYMBOL_ITEM_FUNC(_Tree_Rb_Erase) 
     SYMBOL_ITEM_FUNC(_Tree_Rb_Insert_Color) 
-    SYMBOL_ITEM_FUNC(__trie_insert) 
-    SYMBOL_ITEM_FUNC(__trie_node_validate) 
-    SYMBOL_ITEM_FUNC(__trie_search) 
+    SYMBOL_ITEM_FUNC(__trieDelete) 
+    SYMBOL_ITEM_FUNC(__trieFromFile) 
+    SYMBOL_ITEM_FUNC(__trieGetRoot) 
+    SYMBOL_ITEM_FUNC(__trieInsert) 
+    SYMBOL_ITEM_FUNC(__trieNodeValidate) 
+    SYMBOL_ITEM_FUNC(__trieSearch) 
+    SYMBOL_ITEM_FUNC(__trieToFile) 
     SYMBOL_ITEM_FUNC(__pageAllocate) 
     SYMBOL_ITEM_FUNC(__pageAllocateAlign) 
     SYMBOL_ITEM_FUNC(__pageCbInit) 
@@ -13065,10 +13074,11 @@ SYMBOL_TABLE_BEGIN
     SYMBOL_ITEM_FUNC(__tshellThread) 
     SYMBOL_ITEM_FUNC(__tshellThreadHook) 
     SYMBOL_ITEM_FUNC(__tshellUndef) 
+    SYMBOL_ITEM_FUNC(__tshellAfterExecution) 
+    SYMBOL_ITEM_FUNC(__tshellBeforeExecution) 
     SYMBOL_ITEM_FUNC(__tshellHistoryBackup) 
     SYMBOL_ITEM_FUNC(__tshellReadline) 
     SYMBOL_ITEM_FUNC(__tshellReadlineClean) 
-    SYMBOL_ITEM_FUNC(__tshellRefreshHistory) 
     SYMBOL_ITEM_FUNC(__tshellSysCmdInit) 
     SYMBOL_ITEM_FUNC(__tshellSysVarInit) 
     SYMBOL_ITEM_FUNC(__tshellStrConvertVar) 

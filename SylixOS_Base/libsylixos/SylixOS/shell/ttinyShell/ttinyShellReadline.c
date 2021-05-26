@@ -104,16 +104,61 @@ typedef __SHELL_HISTORY         *__PSHELL_HISTORY;
   历史记录
 *********************************************************************************************************/
 static LW_LIST_LINE_HEADER       _K_plineShellHisc;
-static PLW_TRIE_NODE             _history_trie_root;
-static int                       _last_match_length;
-static PCHAR                     _last_match;
+static PLW_TRIE_NODE             _historyTrieRoot = LW_NULL;
+static int                       _lastMatchLength;
+static PCHAR                     _lastMatch;
+//#define HISTORY_FILENAME         "/etc/"
 /*********************************************************************************************************
   打印用
 *********************************************************************************************************/
 #define __REPEAT_BUFFER_LEN      20
 #define __KEY_BS                 0X08
-static PCHAR                     _space_buffer;
-static PCHAR                     _backspace_buffer;
+static PCHAR                     _spaceBuffer;
+static PCHAR                     _backspaceBuffer;
+/*********************************************************************************************************
+** 函数名称: __tshellInitHistoryTrie
+** 功能描述: 在shell开始时，初始化前缀树
+** 输　入  : NONE
+** 输　出  : NONE
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+static VOID __tshellInitHistoryTrie()
+{
+    if (_historyTrieRoot != LW_NULL) {
+        return;
+    }
+
+    FILE *historyFile = fopen("~/.shellHistory", "rb");
+    if (historyFile) {
+        _historyTrieRoot = __trieFromFile(historyFile);
+        fclose(historyFile);
+    } else {
+        _historyTrieRoot = __trieGetRoot();
+    }
+
+    _lastMatchLength = 0;
+    _lastMatch = LW_NULL;
+}
+/*********************************************************************************************************
+** 函数名称: __tshellBackupHistoryTrie
+** 功能描述: 在shell正常结束时，备份前缀树
+** 输　入  : NONE
+** 输　出  : NONE
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+static VOID __tshellBackupHistoryTrie()
+{
+    FILE *historyFile = fopen("~/.shellHistory", "wb");
+    if (historyFile) {
+        __trieToFile(_historyTrieRoot, historyFile);
+        fclose(historyFile);
+    }
+
+    __trieDelete(_historyTrieRoot);
+    _historyTrieRoot = LW_NULL;
+}
 /*********************************************************************************************************
 ** 函数名称: __tshellReadlineClean
 ** 功能描述: shell 退出时清除 readline 信息.
@@ -149,8 +194,10 @@ VOID  __tshellReadlineClean (LW_OBJECT_HANDLE  ulId, PVOID  pvRetVal, PLW_CLASS_
             __TTINY_SHELL_SET_HIS(ptcbDel, LW_NULL);
         }
 
-        __SHEAP_FREE(_space_buffer);
-        __SHEAP_FREE(_backspace_buffer);
+        __SHEAP_FREE(_spaceBuffer);
+        __SHEAP_FREE(_backspaceBuffer);
+
+        __tshellBackupHistoryTrie();
     }
 }
 /*********************************************************************************************************
@@ -196,22 +243,17 @@ static INT  __tshellReadlineInit (VOID)
 
         __TTINY_SHELL_SET_HIS(ptcbCur, psihc);
 
-        _history_trie_root = (PLW_TRIE_NODE)__SHEAP_ALLOC(sizeof(LW_TRIE_NODE));
-        INITIALIZE_TRIE_NODE(_history_trie_root);
-        __trie_node_validate(_history_trie_root);
-        _last_match_length = 0;
-        _last_match = LW_NULL;
-
-        _space_buffer = (PCHAR)__SHEAP_ALLOC(__REPEAT_BUFFER_LEN * sizeof(CHAR));
-        _backspace_buffer = (PCHAR)__SHEAP_ALLOC(__REPEAT_BUFFER_LEN * sizeof(CHAR));
+        _spaceBuffer = (PCHAR)__SHEAP_ALLOC(__REPEAT_BUFFER_LEN * sizeof(CHAR));
+        _backspaceBuffer = (PCHAR)__SHEAP_ALLOC(__REPEAT_BUFFER_LEN * sizeof(CHAR));
         int i;
         for (i = 0; i < __REPEAT_BUFFER_LEN; i++) {
-            _space_buffer[i] = ' ';
-            _backspace_buffer[i] = __KEY_BS;
+            _spaceBuffer[i] = ' ';
+            _backspaceBuffer[i] = __KEY_BS;
         }
-
     }
     
+    __tshellInitHistoryTrie();
+
     return  (ERROR_NONE);
 }
 /*********************************************************************************************************
@@ -346,10 +388,10 @@ static VOID  __fillRepeatBackspace (INT  iFd, size_t stLen)
 {
     while (1) {
         if (stLen > __REPEAT_BUFFER_LEN) {
-            write(iFd, _backspace_buffer, __REPEAT_BUFFER_LEN);
+            write(iFd, _backspaceBuffer, __REPEAT_BUFFER_LEN);
             stLen -= __REPEAT_BUFFER_LEN;
         } else {
-            write(iFd, _backspace_buffer, stLen);
+            write(iFd, _backspaceBuffer, stLen);
             return;
         }
     }
@@ -367,10 +409,10 @@ static VOID  __fillRepeatSpace (INT  iFd, size_t  stLen)
 {
     while (1) {
         if (stLen > __REPEAT_BUFFER_LEN) {
-            write(iFd, _space_buffer, __REPEAT_BUFFER_LEN);
+            write(iFd, _spaceBuffer, __REPEAT_BUFFER_LEN);
             stLen -= __REPEAT_BUFFER_LEN;
         } else {
-            write(iFd, _space_buffer, stLen);
+            write(iFd, _spaceBuffer, stLen);
             return;
         }
     }
@@ -379,15 +421,14 @@ static VOID  __fillRepeatSpace (INT  iFd, size_t  stLen)
 ** 函数名称: __tshellClearHistorySuggestion
 ** 功能描述: 清空之前的历史记录补全信息
 ** 输　入  : iFd           文件描述符
-**        psicContext   当前输入上下文
 ** 输　出  : NONE
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-static VOID __tshellClearHistorySuggestion(INT  iFd, __PSHELL_INPUT_CTX  psicContext)
+static VOID __tshellClearHistorySuggestion(INT  iFd)
 {
-    __fillRepeatSpace(iFd, _last_match_length);
-    __fillRepeatBackspace(iFd, _last_match_length);
+    __fillRepeatSpace(iFd, _lastMatchLength);
+    __fillRepeatBackspace(iFd, _lastMatchLength);
 }
 /*********************************************************************************************************
 ** 函数名称: __tshellPrintHistorySuggestion
@@ -401,18 +442,18 @@ static VOID __tshellClearHistorySuggestion(INT  iFd, __PSHELL_INPUT_CTX  psicCon
 static VOID __tshellPrintHistorySuggestion(INT iFd, __PSHELL_INPUT_CTX  psicContext)
 {
     if (psicContext->SIC_uiTotalLen > 0 && psicContext->SIC_uiCursor == psicContext->SIC_uiTotalLen) {
-        if (_last_match) {
-            __SHEAP_FREE(_last_match);
+        if (_lastMatch) {
+            __SHEAP_FREE(_lastMatch);
         }
-        _last_match = __trie_search(_history_trie_root, psicContext->SIC_cInputBuffer, psicContext->SIC_uiTotalLen);
-        if (_last_match) {
-            _last_match_length = strlen(_last_match);
+        _lastMatch = __trieSearch(_historyTrieRoot, psicContext->SIC_cInputBuffer, psicContext->SIC_uiTotalLen);
+        if (_lastMatch) {
+            _lastMatchLength = strlen(_lastMatch);
             API_TShellColorStart2(LW_TSHELL_COLOR_DARY_GRAY, STD_OUT);
-            printf("%s",_last_match);
+            printf("%s",_lastMatch);
             API_TShellColorEnd(STD_OUT);
-            __fileRepeatBackspace(_last_match_length);
+            __fillRepeatBackspace(iFd, _lastMatchLength);
         } else {
-            _last_match_length = 0;
+            _lastMatchLength = 0;
         }
     }
 }
@@ -484,14 +525,13 @@ static VOID  __tshellCharRight (INT  iFd, __PSHELL_INPUT_CTX  psicContext)
     if (CTX_CURSOR < CTX_TOTAL) {
         CTX_CURSOR++;
         __KEY_WRITE_RIGHT(iFd);
-    } else if (_last_match && *_last_match != '\0') {
-        putchar(*_last_match);
-        CTX_BUFFER[CTX_TOTAL++] = *_last_match;
+    } else if (_lastMatch && *_lastMatch != '\0') {
+        CTX_BUFFER[CTX_TOTAL++] = *_lastMatch;
         PCHAR new_buffer = (PCHAR)__SHEAP_ALLOC(
-                                (_last_match_length--) * sizeof(CHAR));
-        strcpy(new_buffer, _last_match + 1);
-        __SHEAP_FREE(_last_match);
-        _last_match = new_buffer;
+                                (_lastMatchLength--) * sizeof(CHAR));
+        strcpy(new_buffer, _lastMatch + 1);
+        __SHEAP_FREE(_lastMatch);
+        _lastMatch = new_buffer;
         CTX_CURSOR++;
         __KEY_WRITE_RIGHT(iFd);
     }
@@ -561,7 +601,7 @@ static VOID  __tshellCharBackspace (INT  iFd, CHAR  cChar, __PSHELL_INPUT_CTX  p
     }
     
     if (CTX_CURSOR == CTX_TOTAL) {
-        __tshellClearHistorySuggestion(iFd, psicContext);
+        __tshellClearHistorySuggestion(iFd);
         CHAR bs[3] = {__KEY_BS, ' ', __KEY_BS};
         write(iFd, bs, 3);
         CTX_CURSOR--;
@@ -645,7 +685,7 @@ static VOID  __tshellCharEnd (INT  iFd, __PSHELL_INPUT_CTX  psicContext)
 *********************************************************************************************************/
 static VOID  __tshellCharInster (INT  iFd, CHAR  cChar, __PSHELL_INPUT_CTX  psicContext)
 {
-    __tshellClearHistorySuggestion(iFd, psicContext);
+    __tshellClearHistorySuggestion(iFd);
 
     if (CTX_CURSOR == CTX_TOTAL) {
         write(iFd, &cChar, 1);
@@ -692,27 +732,36 @@ static size_t  __similarLen (CPCHAR  pcStr1, CPCHAR  pcStr2)
     return  (stSimilar);
 }
 /*********************************************************************************************************
-** 函数名称: __tshellRefreshHistory
+** 函数名称: __tshellBeforeExecution
 ** 功能描述: 成功执行命令后，更新历史记录相关信息
 ** 输　入  : iFd           文件描述符
-**        pcBuffer      命令字符串
+** 输　出  : NONE
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+VOID __tshellBeforeExecution(INT iFd)
+{
+    if (_lastMatch) {
+        __tshellClearHistorySuggestion(iFd);
+        __SHEAP_FREE(_lastMatch);
+        _lastMatch = LW_NULL;
+    }
+    _lastMatchLength = 0;
+}
+/*********************************************************************************************************
+** 函数名称: __tshellAfterExecution
+** 功能描述: 成功执行命令后，更新历史记录相关信息
+** 输　入  : pcBuffer      命令字符串
 **        stSize        字符串长度
 **        returnValue   指令执行后返回值
 ** 输　出  : NONE
 ** 全局变量:
 ** 调用模块:
 *********************************************************************************************************/
-VOID __tshellRefreshHistory(INT iFd, PVOID  pcBuffer, size_t  stSize, INT returnValue)
+VOID __tshellAfterExecution(PVOID  pcBuffer, size_t  stSize, INT returnValue)
 {
-    if (_last_match) {
-        __tshellClearHistorySuggestion(iFd, _last_match_length);
-        __SHEAP_FREE(_last_match);
-        _last_match = LW_NULL;
-    }
-    _last_match_length = 0;
-
     if (returnValue == 0) {
-        __trie_insert(_history_trie_root, pcBuffer, stSize);        /*  插入前缀树                       */
+        __trieInsert(_historyTrieRoot, pcBuffer, stSize);        /*  插入前缀树                       */
     }
 }
 /*********************************************************************************************************
@@ -844,7 +893,7 @@ __print_dirent:
     } while (pdirent);
     
     closedir(pdir);
-    
+
     if (uiMath > 1) {                                                   /*  多个匹配                    */
         if (stTotalLen) {
             printf("\n");                                               /*  结束本行                    */
@@ -860,7 +909,7 @@ __print_dirent:
             CTX_CURSOR = CTX_TOTAL;
         }
         write(iFd, CTX_BUFFER, CTX_TOTAL);
-        
+
     } else if (uiMath == 1) {                                           /*  仅有一个匹配                */
         size_t  stCatLen;
         
@@ -982,6 +1031,7 @@ __print_keyword:
     API_TShellColorEnd(STD_OUT);
 
     if (numMatch == 1) {
+        __tshellClearHistorySuggestion(iFd);
         size_t catLen = lib_strlen(firstKeyword) - currentLen;
         write(iFd, &firstKeyword[currentLen], catLen);
         lib_strlcat(CTX_BUFFER, &firstKeyword[currentLen], LW_CFG_SHELL_MAX_COMMANDLEN);
@@ -1000,6 +1050,10 @@ __print_keyword:
             CTX_CURSOR = CTX_TOTAL;
         }
         write(iFd, CTX_BUFFER, CTX_TOTAL);
+    }
+
+    if (numMatch != 0) {
+        __tshellPrintHistorySuggestion(iFd, psicContext);
     }
 }
 /*********************************************************************************************************
@@ -1028,7 +1082,7 @@ static VOID  __tshellCharTab (INT  iFd, __PSHELL_INPUT_CTX  psicContext)
              PCHAR       pcDir;
              PCHAR       pcFileName;
     REGISTER ULONG       ulError;
-    
+
     if (CTX_CURSOR < CTX_TOTAL) {                                       /*  将光标移动到行末            */
         __tshellTtyCursorMoveRight(iFd, CTX_TOTAL - CTX_CURSOR);
         CTX_CURSOR = CTX_TOTAL;
@@ -1081,8 +1135,11 @@ static VOID  __tshellCharTab (INT  iFd, __PSHELL_INPUT_CTX  psicContext)
         return;
     }
     
+    __tshellClearHistorySuggestion(iFd);
+
     if (i == 0) {                                                       /*  只有一个字段时                 */
         __tshellKeywordMatch(iFd, pcDir, psicContext);
+        __tshellPrintHistorySuggestion(iFd, psicContext);
         return;                                                         /*  在本来的逻辑中，也只能通过"./xxxx"的方式运行可执行文件，所以第一个词必须是关键字    */
     }
 
@@ -1090,6 +1147,7 @@ static VOID  __tshellCharTab (INT  iFd, __PSHELL_INPUT_CTX  psicContext)
         pcDir = ".";
         pcFileName = "";
         __tshellFileMatch(iFd, pcDir, pcFileName, psicContext);         /*  显示目录下指定匹配的文件    */
+        __tshellPrintHistorySuggestion(iFd, psicContext);
         return;
     }
     
@@ -1110,6 +1168,7 @@ static VOID  __tshellCharTab (INT  iFd, __PSHELL_INPUT_CTX  psicContext)
     }
     
     __tshellFileMatch(iFd, pcDir, pcFileName, psicContext);             /*  显示目录下指定匹配的文件    */
+    __tshellPrintHistorySuggestion(iFd, psicContext);
 }
 /*********************************************************************************************************
 ** 函数名称: __tshellReadline

@@ -15,18 +15,19 @@
 #define  __SYLIXOS_KERNEL
 #include "../SylixOS/kernel/include/k_kernel.h"
 #include <string.h>
+#include <stdio.h>
 
-/* 目前只支持ascii码, 所以是256位。 */
+/* 目前只支持ascii码, 所以是256位(如果之后要改的话还需要改most_frequently_used_char的声明)。 */
 #define TRIE_CHILD_LENGTH  256
 /*********************************************************************************************************
  前缀树类型, 仅支持ascii码。
 *********************************************************************************************************/
 typedef struct __trie_node {
-    BOOL                is_valid:1;
-    BOOL                is_end:1;
-    unsigned short      frequence;
-    unsigned short      max_frequence;
-    char                most_frequently_used_char;
+    unsigned            isValid:1;
+    unsigned            isEnd:1;
+    unsigned            frequence:15;
+    unsigned            maxFrequence:15;
+    char                mostFrequentlyUsedChar;
     struct __trie_node *child;
 } LW_TRIE_NODE;
 typedef LW_TRIE_NODE    *PLW_TRIE_NODE;
@@ -34,42 +35,21 @@ typedef LW_TRIE_NODE    *PLW_TRIE_NODE;
 /*********************************************************************************************************
   前缀树节点结构初始化
 *********************************************************************************************************/
-#define INITIALIZE_TRIE_NODE(trie_node) do {                \
-            (trie_node)->is_valid = LW_FALSE;               \
-            (trie_node)->is_end = LW_FALSE;                 \
-            (trie_node)->frequence = 0;                     \
-            (trie_node)->max_frequence = 0;                 \
+#define INITIALIZE_TRIE_NODE(trieNode) do {                \
+            (trieNode)->isValid = LW_FALSE;                \
+            (trieNode)->isEnd = LW_FALSE;                  \
+            (trieNode)->frequence = 0;                     \
+            (trieNode)->maxFrequence = 0;                  \
         } while (0)
 /*********************************************************************************************************
-** 函数名称: __trie_node_validate
-** 功能描述: 使一个前缀树节点生效
-** 输　入  : trie_node 待生效节点
-** 输　出  : NONE
-** 全局变量:
-** 调用模块:
+  前缀树操作
 *********************************************************************************************************/
-VOID __trie_node_validate(PLW_TRIE_NODE trie_node);
-/*********************************************************************************************************
-** 函数名称: __trie_insert
-** 功能描述: 将一个字符串插入前缀树中
-** 输　入  : trie_node 当前插入位置
-**        sentence  当前插入字符串
-**        n         字符串长度
-** 输　出  : NONE
-** 全局变量:
-** 调用模块:
-*********************************************************************************************************/
-VOID __trie_insert(PLW_TRIE_NODE trie_node, PCHAR sentence, int n);
-/*********************************************************************************************************
-** 函数名称: __trie_search
-** 功能描述: 找出前缀树中匹配当前字符串的后缀字符串
-** 输　入  : trie_node 当前搜索位置
-**        sentence  当前搜索字符串
-**        n         字符串长度
-** 输　出  : 如果存在匹配字符串则返回其中一个后缀, 如果不存在则返回空指针
-** 全局变量:
-** 调用模块:
-*********************************************************************************************************/
-PCHAR __trie_search(PLW_TRIE_NODE trie_node, PCHAR sentence, int n);
+PLW_TRIE_NODE   __trieGetRoot(VOID);
+VOID            __trieNodeValidate(PLW_TRIE_NODE trieNode);
+VOID            __trieInsert(PLW_TRIE_NODE trieNode, PCHAR sentence, int n);
+PCHAR           __trieSearch(PLW_TRIE_NODE trieNode, PCHAR sentence, int n);
+VOID            __trieDelete(PLW_TRIE_NODE trieNode);
+VOID            __trieToFile(PLW_TRIE_NODE trieNode, FILE *file);
+PLW_TRIE_NODE   __trieFromFile(FILE *file);
 
 #endif /* LIBSYLIXOS_SYLIXOS_KERNEL_TREE_TRIE_H_ */
