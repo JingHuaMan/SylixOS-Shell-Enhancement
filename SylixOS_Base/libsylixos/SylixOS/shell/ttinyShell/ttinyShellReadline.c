@@ -167,6 +167,8 @@ static VOID __tshellBackupHistoryTrie()
         fclose(historyFile);
     }
 
+    chmod(filename, 600);
+
     __trieDelete(_historyTrieRoot);
     _historyTrieRoot = LW_NULL;
 }
