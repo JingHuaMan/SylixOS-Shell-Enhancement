@@ -23,12 +23,12 @@
  前缀树类型, 仅支持ascii码。
 *********************************************************************************************************/
 typedef struct __trie_node {
-    unsigned            isValid:1;
-    unsigned            isEnd:1;
-    unsigned            frequence:15;
-    unsigned            maxFrequence:15;
-    char                mostFrequentlyUsedChar;
-    struct __trie_node *child;
+    unsigned            isValid:1;                      /*  child是否被初始化      */
+    unsigned            isEnd:1;                        /*  是否是某个指令的结尾     */
+    unsigned            frequence:15;                   /*  此节点被查询的频率         */
+    unsigned            maxFrequence:15;                /*  子节点中最大使用频率     */
+    char                mostFrequentlyUsedChar;         /*  最常使用子节点                */
+    struct __trie_node *child;                          /*  如被初始化, 则是一个长为256的指针数组     */
 } LW_TRIE_NODE;
 typedef LW_TRIE_NODE    *PLW_TRIE_NODE;
 
