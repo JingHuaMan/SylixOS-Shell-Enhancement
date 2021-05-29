@@ -550,9 +550,11 @@ INT  __tshellExec (CPCHAR  pcCommandExec, VOIDFUNCPTR  pfuncHook)
              BOOL       bCmdLineNeedAsyn;                               /*  命令行是否要求异步背景执行  */
              
     
+
     if (!pcCmd || __TTINY_SHELL_CMD_ISEND(pcCmd)) {                     /*  命令错误                    */
         return  (ERROR_NONE);
     }
+
     
     while (__TTINY_SHELL_CMD_ISWHITE(pcCmd)) {                          /*  过滤前面的不可见字符        */
         pcCmd++;
@@ -560,16 +562,122 @@ INT  __tshellExec (CPCHAR  pcCommandExec, VOIDFUNCPTR  pfuncHook)
             return  (ERROR_NONE);                                       /*  不是有效的命令字            */
         }
     }
+
     
     if (*pcCmd == '#') {                                                /*  注释行直接忽略              */
         return  (ERROR_NONE);
     }
-    
+
     stStrLen = lib_strnlen(pcCmd, LW_CFG_SHELL_MAX_COMMANDLEN + 1);     /*  计算字符串长短              */
     if ((stStrLen > LW_CFG_SHELL_MAX_COMMANDLEN - 1) || (stStrLen < 1)) {
         return  (-ERROR_TSHELL_EPARAM);                                 /*  字符串长度错误              */
     }
-    
+
+    //change
+    PCHAR tempCmd=pcCmd;
+    char firstCmd[stStrLen+15];
+    PCHAR firstCmdPoint=firstCmd;
+    char secondCmd[stStrLen+15];
+    PCHAR secondCmdPoint=secondCmd;
+    char rmCmd[15]="rm /etc/.log";
+    int index1=0;
+    int index2=0;
+    while(!__TTINY_SHELL_CMD_ISEND(tempCmd)){
+        if(*(tempCmd)=='|')
+            index1++;
+        else if(index1==1){
+            *(firstCmdPoint-1)='>';
+            *(firstCmdPoint++)='/';
+            *(firstCmdPoint++)='e';
+            *(firstCmdPoint++)='t';
+            *(firstCmdPoint++)='c';
+            *(firstCmdPoint++)='/';
+            *(firstCmdPoint++)='.';
+            *(firstCmdPoint++)='l';
+            *(firstCmdPoint++)='o';
+            *(firstCmdPoint++)='g';
+            *(firstCmdPoint++)=PX_EOS;
+            int first= __tshellExec((CPCHAR)firstCmd,pfuncHook);
+            if(first<0)
+                return first;
+
+            int pass=1;
+            while(1){
+                if(*(tempCmd)==PX_EOS){
+                    if(pass){
+                        *(secondCmdPoint++)=' ';
+                        *(secondCmdPoint++)='/';
+                        *(secondCmdPoint++)='e';
+                        *(secondCmdPoint++)='t';
+                        *(secondCmdPoint++)='c';
+                        *(secondCmdPoint++)='/';
+                        *(secondCmdPoint++)='.';
+                        *(secondCmdPoint++)='l';
+                        *(secondCmdPoint++)='o';
+                        *(secondCmdPoint++)='g';
+                        *(secondCmdPoint++)=PX_EOS;
+                    }
+                    int second= __tshellExec((CPCHAR)secondCmd,pfuncHook);
+                    __tshellExec((CPCHAR)rmCmd,pfuncHook);
+                    return second;
+                }
+                if(((*(tempCmd)=='&')&&(*(tempCmd+1)=='&'))||(*(tempCmd)=='|')||(*(tempCmd)==';')){
+                    if(pass){
+                        *(secondCmdPoint++)=' ';
+                        *(secondCmdPoint++)='/';
+                        *(secondCmdPoint++)='e';
+                        *(secondCmdPoint++)='t';
+                        *(secondCmdPoint++)='c';
+                        *(secondCmdPoint++)='/';
+                        *(secondCmdPoint++)='.';
+                        *(secondCmdPoint++)='l';
+                        *(secondCmdPoint++)='o';
+                        *(secondCmdPoint++)='g';
+                        *(secondCmdPoint++)=' ';
+                    }
+                    pass=0;
+                }
+                *(secondCmdPoint)=*(tempCmd);
+                tempCmd++;
+                secondCmdPoint++;
+            }
+        }else
+            index1=0;
+        if(index1==2){
+            *(tempCmd-1)=PX_EOS;
+            int first=__tshellExec((CPCHAR)pcCmd,pfuncHook);
+            if(first<0){
+                tempCmd++;
+                return __tshellExec((CPCHAR)tempCmd,pfuncHook);
+            }
+            return first;
+        }
+
+        if(*(tempCmd)=='&')
+            index2++;
+        else
+            index2=0;
+        if(index2==2){
+            *(tempCmd-1)=PX_EOS;
+            int first=__tshellExec((CPCHAR)pcCmd,pfuncHook);
+            if(first>=0){
+                tempCmd++;
+                return __tshellExec((CPCHAR)tempCmd,pfuncHook);
+            }
+            return first;
+        }
+
+        if(*(tempCmd)==';'){
+            *(tempCmd)=PX_EOS;
+            __tshellExec((CPCHAR)pcCmd,pfuncHook);
+            tempCmd++;
+            return __tshellExec((CPCHAR)tempCmd,pfuncHook);//这里返回什么还存疑
+        }
+        *(firstCmdPoint)=*(tempCmd);
+        tempCmd++;
+        firstCmdPoint++;
+    }
+
     ulError = __tshellStrConvertVar(pcCmd, cCommandBuffer);             /*  变量替换                    */
     if (ulError) {
         return  ((INT)(-ulError));                                      /*  替换错误                    */

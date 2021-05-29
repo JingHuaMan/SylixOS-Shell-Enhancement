@@ -70,6 +70,7 @@
 #define  __SYLIXOS_KERNEL
 #include "limits.h"
 #include "unistd.h"
+#include <stdlib.h>
 #include "../SylixOS/shell/ttinyShell/ttinyShellReadline.h"
 /*********************************************************************************************************
   裁剪控制
@@ -96,6 +97,220 @@
 #if (LW_CFG_CDUMP_EN > 0) && (LW_CFG_DEVICE_EN > 0)
 #include "time.h"
 #endif
+/*********************************************************************************************************
+  正则相关
+*********************************************************************************************************/
+#include <cregex.h>
+#include <string.h>
+int pre(CPCHAR target, int len, int* buf) {
+    int index=0;
+    REGISTER int   i;
+    buf[0] = 0;
+    for(i=1;i<len;i++) {
+        while(1) {
+            if(index==0||target[i]==target[index]) break;
+            index=buf[index-1];
+        }
+        if(target[index]==target[i]) {
+            index++;
+        }
+        buf[i]=index;
+    }
+    return 0;
+}
+int find(CPCHAR list,CPCHAR target, int len, int* pos) {
+    int index=0;
+    int next[1000];
+    int targetLen = strlen(target);
+
+    int positions = 0;
+    pre(target, targetLen, next);
+    REGISTER int i = 0;
+    for (i=0;i<len;i++) {
+        while (1) {
+            if(index==0 || list[i]==target[index]) break;
+            index=next[index - 1];
+        }
+        if (target[index]==list[i]) index++;
+        if (index==targetLen) {
+            index=next[index - 1];
+            pos[positions] = i - targetLen + 1;
+            positions++;
+        }
+    }
+    return positions;
+}
+int getMatchesRegex(CPCHAR target, CPCHAR pattern, int* positionsBuffer, int* lengthBuffer){
+    cregex_node_t* node;
+    cregex_program_t* program;
+    node = cregex_parse(pattern);
+    int shift = 0;
+    program = cregex_compile_node(node);
+    const char* matches[20] = {0};
+    cregex_parse_free(node);
+    REGISTER int i = 0;
+    REGISTER int currentPosition = 0;
+    while(1){
+        if (cregex_program_run(program, target + shift, matches, 20) > 0) {
+            int nmatches = 0;
+            for (i = 0; i < sizeof(matches) / sizeof(matches[0]); ++i){
+                if (matches[i]) nmatches = i;
+            }
+            for (i = 0; i <= nmatches; i += 2) {
+                if (matches[i] && matches[i + 1]) {
+                    lengthBuffer[currentPosition] = (int) (matches[i + 1] - target) - (int) (matches[i] - target);
+                    positionsBuffer[currentPosition] = (int) (matches[i] - target);
+                    shift = (int) (matches[i + 1] - target);
+                    currentPosition++;
+                }
+            }
+
+        } else {
+            break;
+        }
+    }
+    cregex_compile_free(program);
+    return currentPosition;
+}
+/*********************************************************************************************************
+** 函数名称: __tshellSysCmdGrep
+** 功能描述: 系统命令 "grep"
+** 输　入  : iArgC         参数个数
+**           ppcArgV       参数表
+** 输　出  : 0
+** 全局变量:
+** 调用模块:
+*********************************************************************************************************/
+#define _AChoice 1
+#define _nChoice 2
+#define _NChoice 4
+
+static INT  __tshellSysCmdGrep (INT  iArgC, PCHAR  ppcArgV[])
+{
+    if (iArgC < 3) {
+        fprintf(stderr, "Too little argument!.\n");
+        return  (PX_ERROR);
+    }
+    int currentSelection = 0;
+    int ANumber = 0;
+    CPCHAR pattern = NULL;
+    CPCHAR path = NULL;
+    char lineBuffer[1000];
+    int positionsBuffer[100];
+    int lengthBuffer[100];
+    char* rtn;
+    REGISTER int i = 0;
+    int currentPhase = 0;
+    for(i = 1; i < iArgC; i++){
+        if(strcmp(ppcArgV[i], "-A") == 0){
+            currentSelection |= _AChoice;
+            currentPhase = _AChoice;
+        }
+        else if (currentPhase == _AChoice){
+            ANumber = atoi(ppcArgV[i]);
+            currentPhase = 0;
+        }
+        else if (strcmp(ppcArgV[i], "-n") == 0){
+            currentSelection |= _nChoice;
+        }
+        else if (strcmp(ppcArgV[i], "-N") == 0){
+            currentSelection |= _NChoice;
+        }
+        //none phase
+        else{
+            if(pattern == NULL) pattern = ppcArgV[i];
+            else if(path == NULL) path = ppcArgV[i];
+        }
+    }
+    FILE* file = fopen(path, "r");
+    if (!file){
+        printf("No such file!\n");
+        return ENOENT;
+    }
+    REGISTER int occurencePosition = 0;
+    REGISTER size_t rtnLen = 0;
+    int currentLine = 0;
+    int lastMatched = -100000;
+    int occ = 0;
+    int patLen = strlen(pattern);
+    while(1){
+        currentLine++;
+        rtn = fgets(lineBuffer, 1000, file);
+        if(!rtn) break;
+        rtnLen =strlen(rtn);
+        occ = (currentSelection & _NChoice) ?
+                find(rtn, pattern, rtnLen, positionsBuffer) : getMatchesRegex(rtn, pattern, positionsBuffer, lengthBuffer);
+
+        if(occ == 0){
+            if(currentSelection & _AChoice){
+                if(currentLine - lastMatched <= ANumber) {
+                    if(currentSelection & _nChoice){
+                        API_TShellColorStart2(LW_TSHELL_COLOR_LIGHT_GREEN, STD_OUT);
+                        printf("%d", currentLine);
+                        API_TShellColorEnd(STD_OUT);
+                        API_TShellColorStart2(LW_TSHELL_COLOR_LIGHT_BLUE, STD_OUT);
+                        printf("-");
+                        API_TShellColorEnd(STD_OUT);
+                    }
+                    printf("%s", rtn);
+                }
+                else if(currentLine - lastMatched == ANumber + 1){
+                    API_TShellColorStart2(LW_TSHELL_COLOR_LIGHT_BLUE, STD_OUT);
+                    printf("--\n");
+                    API_TShellColorEnd(STD_OUT);
+                }
+            }
+            continue;
+        }
+        else{
+            lastMatched = currentLine;
+        }
+        occurencePosition = 0;
+        if(currentSelection & _nChoice){
+            API_TShellColorStart2(LW_TSHELL_COLOR_LIGHT_GREEN, STD_OUT);
+            printf("%d", currentLine);
+            API_TShellColorEnd(STD_OUT);
+            API_TShellColorStart2(LW_TSHELL_COLOR_LIGHT_BLUE, STD_OUT);
+            printf(":");
+            API_TShellColorEnd(STD_OUT);
+        }
+        if(currentSelection & _NChoice){
+            for(i = 0; i < rtnLen; i++){
+                if(occurencePosition < occ && i > positionsBuffer[occurencePosition] + patLen - 1) {
+                    occurencePosition++;
+                }
+                if(occurencePosition < occ
+                        && i >= positionsBuffer[occurencePosition]
+                        && i - positionsBuffer[occurencePosition] + 1 <= patLen){
+                    API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
+                }
+                else{
+                    API_TShellColorEnd(STD_OUT);
+                }
+                putchar(rtn[i]);
+            }
+        }
+        else{
+            for(i = 0; i < rtnLen; i++){
+                if(occurencePosition < occ && i > positionsBuffer[occurencePosition] + lengthBuffer[occurencePosition] - 1) {
+                    occurencePosition++;
+                }
+                if(occurencePosition < occ
+                        && i >= positionsBuffer[occurencePosition]
+                        && i - positionsBuffer[occurencePosition] + 1 <= lengthBuffer[occurencePosition]){
+                    API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
+                }
+                else{
+                    API_TShellColorEnd(STD_OUT);
+                }
+                putchar(rtn[i]);
+            }
+        }
+        API_TShellColorEnd(STD_OUT);
+    }
+    fclose(file);
+    return  (ERROR_NONE);
+}
 /*********************************************************************************************************
 ** 函数名称: __tshellFsCmdClearhistory
 ** 功能描述: 自制命令 "clearhistory"
@@ -3089,6 +3304,9 @@ VOID  __tshellSysCmdInit (VOID)
     API_TShellFormatAdd("loadhistory", " [file name]");
     API_TShellHelpAdd("loadhistory", " load a history recording file to replace the current history trie.\n");
 
+    API_TShellKeywordAdd("grep", __tshellSysCmdGrep);
+    API_TShellFormatAdd("grep", "[filename] [content]");
+    API_TShellHelpAdd("grep", "??\n");
 }
 
 #endif                                                                  /*  LW_CFG_SHELL_EN > 0         */

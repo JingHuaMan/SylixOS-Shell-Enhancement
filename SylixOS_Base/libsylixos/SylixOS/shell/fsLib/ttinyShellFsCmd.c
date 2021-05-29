@@ -82,11 +82,14 @@
 #if LW_CFG_POSIX_EN > 0
 #include "fnmatch.h"
 #endif                                                                  /*  LW_CFG_POSIX_EN > 0         */
+#define  _pipeName "/dev/pipeFIFO"
 /*********************************************************************************************************
   函数声明
 *********************************************************************************************************/
 static INT      __tshellFsCmdCp(INT  iArgC, PCHAR  ppcArgV[]);
 LW_API time_t   API_RootFsTime(time_t  *time);
+static INT      _tShellPipeJudge(CPCHAR pcName);
+static INT      __tshellFsCmdCat (INT  iArgC, PCHAR  ppcArgV[]);
 /*********************************************************************************************************
 ** 函数名称: __tshellFsCmdCd
 ** 功能描述: 系统命令 "cd"
@@ -105,7 +108,7 @@ static INT  __tshellFsCmdCd (INT  iArgC, PCHAR  ppcArgV[])
         fprintf(stderr, "arguments error!\n");
         return  (-ERROR_TSHELL_EPARAM);
     }
-    
+
     if (iArgC == 1) {
         if (API_TShellGetUserHome(getuid(), cPath, 
                                   MAX_FILENAME_LENGTH) == ERROR_NONE) {
@@ -137,8 +140,32 @@ static INT  __tshellFsCmdCd (INT  iArgC, PCHAR  ppcArgV[])
     if (iError) {
         if (errno == EACCES) {
             fprintf(stderr, "insufficient permissions.\n");
-        } else if (errno == ENOTDIR) {
-            fprintf(stderr, "not a directory!\n");
+        } else if (errno == ENOTDIR) {// change
+            if(_tShellPipeJudge(ppcArgV[1])){
+                unlink(_pipeName);
+                INT ret = mkfifo(_pipeName,0777);
+                if (ret < 0) {
+                    fprintf(stderr, "mkfifo error.\n");
+                    return (-1);
+                }
+                INT error=__tshellFsCmdCat(iArgC,ppcArgV);
+                if(error<0)
+                {
+                    close(ret);
+                    return error;
+                }
+                INT fd=open(_pipeName,O_RDWR);
+                CHAR cBuffer[MAX_FILENAME_LENGTH];
+                INT sstNum=read(fd, cBuffer, MAX_FILENAME_LENGTH);
+                if(sstNum<0)
+                    iError= -1;
+                else
+                    write(1,cBuffer,sstNum);
+                close(fd);
+                unlink(_pipeName);
+            }else{
+                fprintf(stderr, "not a directory!\n");
+            }
         } else {
             fprintf(stderr, "cd: error: %s\n", lib_strerror(errno));
         }
@@ -147,6 +174,27 @@ static INT  __tshellFsCmdCd (INT  iArgC, PCHAR  ppcArgV[])
     }
     
     return  (ERROR_NONE);
+}
+
+static INT _tShellPipeJudge(CPCHAR pcName)
+{
+    CPCHAR temp=pcName;
+    INT judge=1;
+    CHAR etc[20]="/etc/.log";
+    PCHAR tempEtc=etc;
+    while(1)
+    {
+        if(*(temp)!=*(tempEtc)){
+            judge=0;
+            break;
+        }
+        if(*(temp)==PX_EOS){
+            break;
+        }
+        temp++;
+        tempEtc++;
+    }
+    return judge;
 }
 /*********************************************************************************************************
 ** 函数名称: __tshellFsCmdCh
@@ -432,6 +480,7 @@ __error_handle:
 static INT  __tshellFsCmdCat (INT  iArgC, PCHAR  ppcArgV[])
 {
              BOOL           bLastLf = LW_TRUE;
+             BOOL           pipe= LW_TRUE;
     REGISTER INT            iError;
     REGISTER ssize_t        sstNum;
     REGISTER INT            iFd;
@@ -467,21 +516,31 @@ static INT  __tshellFsCmdCat (INT  iArgC, PCHAR  ppcArgV[])
     }
     
     API_ThreadCleanupPush((VOIDFUNCPTR)close, (PVOID)(LONG)iFd);
-    
+
+    INT fd = open(_pipeName, O_RDWR);
+    if(fd<0)
+        pipe=LW_FALSE;
     do {
         sstNum = read(iFd, cBuffer, MAX_FILENAME_LENGTH);
         if (sstNum > 0) {
-            write(1, cBuffer, (size_t)sstNum);
-            bLastLf = (cBuffer[sstNum - 1] == '\n') ? LW_TRUE : LW_FALSE;
+            if (pipe) {// change
+                write(fd,cBuffer,(size_t)sstNum);
+                bLastLf = (cBuffer[sstNum - 1] == '\n') ? LW_TRUE : LW_FALSE;
+            }
+            else{
+                write(1, cBuffer, (size_t)sstNum);
+                bLastLf = (cBuffer[sstNum - 1] == '\n') ? LW_TRUE : LW_FALSE;
+            }
         }
     } while (sstNum > 0);
     
     API_ThreadCleanupPop(LW_TRUE);
     
-    if (!bLastLf) {
+    if (!bLastLf && !pipe) {
         printf("\n");
     }
     
+    close(fd);
     return  (ERROR_NONE);
 }
 /*********************************************************************************************************

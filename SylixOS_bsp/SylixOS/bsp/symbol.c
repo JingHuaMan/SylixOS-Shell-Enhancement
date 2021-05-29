@@ -14,7 +14,7 @@
 **														
 ** 创   建   人: makesymbol 工具						
 **														
-** 文件创建日期: 2021 年 05 月 28 日			
+** 文件创建日期: 2021 年 05 月 29 日			
 **														
 ** 描        述: 系统 sylixos 符号表. (此文件由 makesymbol 工具自动生成, 请勿修改)	
 *********************************************************************************************************/	
@@ -5818,6 +5818,9 @@ extern int  __tshellReadline();
 extern int  __tshellReadlineClean(); 
 extern int  __tshellRefreshHistoryTrie(); 
 extern int  __tshellSysCmdInit(); 
+extern int  find(); 
+extern int  getMatchesRegex(); 
+extern int  pre(); 
 extern int  __tshellSysVarInit(); 
 extern int  __tshellStrConvertVar(); 
 extern int  __tshellStrDelCRLF(); 
@@ -5852,6 +5855,11 @@ extern int  __tshellVarLoad();
 extern int  __tshellVarNum(); 
 extern int  __tshellVarSave(); 
 extern int  __tshellVarSet(); 
+extern int  cregex_compile_free(); 
+extern int  cregex_compile_node(); 
+extern int  cregex_parse(); 
+extern int  cregex_parse_free(); 
+extern int  cregex_program_run(); 
 extern int  __symbolAddBsp(); 
 extern int  __symbolAddSmp(); 
 extern int  __symbolAddLibc(); 
@@ -13084,6 +13092,9 @@ SYMBOL_TABLE_BEGIN
     SYMBOL_ITEM_FUNC(__tshellReadlineClean) 
     SYMBOL_ITEM_FUNC(__tshellRefreshHistoryTrie) 
     SYMBOL_ITEM_FUNC(__tshellSysCmdInit) 
+    SYMBOL_ITEM_FUNC(find) 
+    SYMBOL_ITEM_FUNC(getMatchesRegex) 
+    SYMBOL_ITEM_FUNC(pre) 
     SYMBOL_ITEM_FUNC(__tshellSysVarInit) 
     SYMBOL_ITEM_FUNC(__tshellStrConvertVar) 
     SYMBOL_ITEM_FUNC(__tshellStrDelCRLF) 
@@ -13118,6 +13129,11 @@ SYMBOL_TABLE_BEGIN
     SYMBOL_ITEM_FUNC(__tshellVarNum) 
     SYMBOL_ITEM_FUNC(__tshellVarSave) 
     SYMBOL_ITEM_FUNC(__tshellVarSet) 
+    SYMBOL_ITEM_FUNC(cregex_compile_free) 
+    SYMBOL_ITEM_FUNC(cregex_compile_node) 
+    SYMBOL_ITEM_FUNC(cregex_parse) 
+    SYMBOL_ITEM_FUNC(cregex_parse_free) 
+    SYMBOL_ITEM_FUNC(cregex_program_run) 
     SYMBOL_ITEM_FUNC(__symbolAddBsp) 
     SYMBOL_ITEM_FUNC(__symbolAddSmp) 
     SYMBOL_ITEM_FUNC(__symbolAddLibc) 

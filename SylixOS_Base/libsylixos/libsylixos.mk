@@ -1780,7 +1780,10 @@ SylixOS/shell/ttinyUser/ttinyUserAdmin.c \
 SylixOS/shell/ttinyUser/ttinyUserAuthen.c \
 SylixOS/shell/ttinyUser/ttinyUserCache.c \
 SylixOS/shell/ttinyVar/ttinyVar.c \
-SylixOS/shell/ttinyVar/ttinyVarLib.c
+SylixOS/shell/ttinyVar/ttinyVarLib.c \
+SylixOS/shell/shellRegex/compile.c \
+SylixOS/shell/shellRegex/parse.c \
+SylixOS/shell/shellRegex/vm.c
 
 #*********************************************************************************************************
 # Symbol source
