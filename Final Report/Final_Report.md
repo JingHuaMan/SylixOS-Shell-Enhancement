@@ -20,11 +20,11 @@ We are Group-11.
 
 ### Group Member
 
-| Name   | SID      |
-| ------ | -------- |
-| 徐向宇 | 11810113 |
-| 罗叶安 | 11810616 |
-| 李昊锦 | 11810911 |
+| Name   | SID      | Division of Labor |
+| ------ | -------- | ----------------- |
+| 徐向宇 | 11810113 | Pipe              |
+| 罗叶安 | 11810616 | Useful Commands   |
+| 李昊锦 | 11810911 | Auto-completion   |
 
 ## Project Background and Description
 
@@ -63,7 +63,7 @@ Besides, ttinyShell has already included a basic auto-completion function. When 
 
 TTinyShell has no pipe, no output filter, and no divi-screen display. It also supports shell scripts, but complicated mechanisms like `if` / `else` / `while` could not be used in the scripts yet.
 
-## Results
+## Result Analysis
 
 ### Keyword Auto Completion
 
@@ -116,7 +116,7 @@ This shows the result of performing a regular expression pattern with a complica
 This shows the result of performing a regular expression pattern combined with our pipeline scheme.</br>
 ![grep_result_4](Final_Report.assets/grep_result_4.png)
 
-## Design
+## Implementation
 
 ### Keyword Auto Completion
 
@@ -286,20 +286,19 @@ if (isAll || *(pdirent->d_name) != '.') {
 
 So that's all of what we have done for this part. It's simple, but we have learned a lot about the utilization of the command registration APIs.
 
+### *grep* command
 
+In SylixOS, we use the following functions to register a command. Such command does not require a binary file.
 
-### Grep command
-
-In SylixOS, we use the following functions to register a command. Such command does not require a binary file.</br> 
 ```c
 LW_API  
 ULONG  API_TShellKeywordAdd (CPCHAR  pcKeyword, PCOMMAND_START_ROUTINE  pfuncCommand);
 ```
-The function's second argument is the function pointer of your command:</br>
+The function's second argument is the function pointer of your command:
 ```c
 typedef INT               (*PCOMMAND_START_ROUTINE)(INT  iArgC, PCHAR  ppcArgV[]);
 ```
-Our grep function is defined as follow, where the first argument indicate the amount of arguments passed to grep command and the second argument is the argument list passed to grep command:
+Our `grep` function is defined as follow, where the first argument indicate the amount of arguments passed to `grep` command and the second argument is the argument list passed to `grep` command:
 ```c
 static INT  __tshellSysCmdGrep (INT  iArgC, PCHAR  ppcArgV[]);
 ```
@@ -330,7 +329,7 @@ for(i = 1; i < iArgC; i++){
     }
 }
 ```
-SylixOS has a POSIX regular expression library, but it cannot be referred by our grep function which is in the kernel. So we used code from a light weight [regular expression library](https://github.com/jserv/cregex) and modified it to transplant into SylixOS kernel. This regular expression labrary does not support multiple matches with one string, so we recursively perform the regular pattern matching on the remaining part of string after each time it matches something in that string.
+SylixOS has a POSIX regular expression library, but it cannot be referred by our `grep` function which is in the kernel. So we used code from a light weight [regular expression library](https://github.com/jserv/cregex) and modified it to transplant into SylixOS kernel. This regular expression library does not support multiple matches with one string, so we recursively perform the regular pattern matching on the remaining part of string after each time it matches something in that string.
 ```c
 while(1){
     if (cregex_program_run(program, target + shift, matches, 20)/*The pattern is matched successfully*/) {
@@ -346,7 +345,7 @@ The following 2 commands are used to output contents in a specific color and the
 VOID  API_TShellColorStart2 (CPCHAR  pcColor, INT  iFd);
 VOID  API_TShellColorEnd (INT  iFd);
 ```
-Therefore, we use for loop and putchar function to mark the filtered pattern in light red, just as what linux's grep does.
+Therefore, we use for loop and `putchar` function to mark the filtered pattern in light red, just as what `Linux`'s `grep` does.
 ```c
 for(i = 0; i < search_string_length; i++){
     if(/*The current index in inside an interval of the pattern */){
@@ -358,10 +357,28 @@ for(i = 0; i < search_string_length; i++){
     putchar(search_string[i]);
 }
 ```
-If the user uses "-N" to perform a pure filtering, we use KMP algorithm to complete this work because it is fast enough and can find all the occurence positions of a given string within another string.
+If the user uses "-N" to perform a pure filtering, we use KMP algorithm to complete this work because it is fast enough and can find all the occurrence positions of a given string within another string.
 
+## Future Direction
 
-## Conclusion and Future Work
+In the implementation of history-auto-suggestion function, there are two potential problems. Firstly, in our design, the OS will store the history commands into file when the terminal thread is down. However, if users just shutdown the terminal with the `CLOSE` button like this,
 
-Our grep function now has some basic functionalities. However, the grep in linux has many advanced usages that have combined actions. The argument parsing and executing scheme might not be enough for adding new arguments. For example, to support "-A" and "-n" argument made us added code to output the result in both the original output function and the output function of "-A", which brang tremendous amount of smelly code into our design. The problem can be easily solved in object-oriented programming languages with some design patterns but much harder in C programming language. In future, we may try to refactor our grep function with visitor pattern or other design patterns to enable it to handle various types of arguments and their combination.
+![image-20210530170115796](Final_Report.assets/image-20210530170115796.png)
 
+The history commands will **NOT** been stored. We guess that it's because the `CLOSE` button means turn off the power of the virtual machine, thus the hook functions related to thread closure will not be called. If we need to solve this problem, we should find a way to capture the signal of the ending of terminal thread, or make the OS to call all the hook functions before VM shutdown. The second problem is that, the readline functions related to `LEFT` , `RIGHT`, `UP`, `DOWN` buttons are somehow called after the cursor move in the terminal. This seems to be some sort of asynchronous mechanism, but we don't yet understand how it works. If we figure out the mechanism, we would be able to add more user-friendly functions to `ttinyShell`.
+
+Our `grep` function now has some basic functionalities. However, the `grep` in `Linux` has many advanced usages that have combined actions. The argument parsing and executing scheme might not be enough for adding new arguments. For example, to support "-A" and "-n" argument made us added code to output the result in both the original output function and the output function of "-A", which brang tremendous amount of smelly code into our design. The problem can be easily solved in object-oriented programming languages with some design patterns but much harder in C programming language. In future, we may try to refactor our `grep` function with visitor pattern or other design patterns to enable it to handle various types of arguments and their combination.
+
+## Conclusion
+
+In this project, we learned a lot about how shell works and how to install new system commands in the kernel. This is actually the first time for us to involve into such a large project written in C, allowing us to accumulate large project management, development of some experience. In the past month, our teamwork has always been simple and efficient, and we have had a good time.
+
+## Reference
+
+1. `SylixOS_application_usermanual.pdf`
+2. `SylixOS shell 增强开发指导文档.docx`
+3. https://en.wikipedia.org/wiki/Standard_streams
+4. https://en.wikipedia.org/wiki/Operating_system
+5. http://www.gnu.org/software/bash/manual/
+
+6. https://github.com/jserv/cregex
