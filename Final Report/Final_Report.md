@@ -101,6 +101,21 @@ By default, `ll` and `ls ` will always show all the files in the specified direc
 
 ![image-20210528112245294](Final_Report.assets/image-20210528112245294.png)
 
+### Grep command
+SylixOS does not support **grep** function. Therefore, we implemented a grep function which has some functions similar to them of grep in linux. Besides filtering text from any file input, it can accept **-n** argument to label the index of each row, **-A number** to also display **number** rows after the rows containing our search target. It accepts regular expression as search string to match patterns in the input file. It also accepts argument **-N** to disable the regular expression to perform a pure string matching. The following images demonstrate the usages of our grep function.</br>
+
+This shows the result of performing a regular expression pattern matching combined with "-A" argument.</br>
+![grep_result_0](Final_Report.assets/grep_result_0.png)
+
+This shows the result of performing a regular expression pattern matching combined with "-A" and "-n" arguments. It has a similar behavior with linux's grep.</br>
+![grep_result_1](Final_Report.assets/grep_result_1.png)
+
+This shows the result of performing a regular expression pattern with a complicated regular pattern.</br>
+![grep_result_2](Final_Report.assets/grep_result_2.png)
+
+This shows the result of performing a regular expression pattern combined with our pipeline scheme.</br>
+![grep_result_4](Final_Report.assets/grep_result_4.png)
+
 ## Design
 
 ### Keyword Auto Completion
@@ -271,5 +286,82 @@ if (isAll || *(pdirent->d_name) != '.') {
 
 So that's all of what we have done for this part. It's simple, but we have learned a lot about the utilization of the command registration APIs.
 
+
+
+### Grep command
+
+In SylixOS, we use the following functions to register a command. Such command does not require a binary file.</br> 
+```c
+LW_API  
+ULONG  API_TShellKeywordAdd (CPCHAR  pcKeyword, PCOMMAND_START_ROUTINE  pfuncCommand);
+```
+The function's second argument is the function pointer of your command:</br>
+```c
+typedef INT               (*PCOMMAND_START_ROUTINE)(INT  iArgC, PCHAR  ppcArgV[]);
+```
+Our grep function is defined as follow, where the first argument indicate the amount of arguments passed to grep command and the second argument is the argument list passed to grep command:
+```c
+static INT  __tshellSysCmdGrep (INT  iArgC, PCHAR  ppcArgV[]);
+```
+To parse the arguments and check whether each of them is set or not set, we used a automata in a for loop to parse all the arguments and a "mask" to store the user's choice.
+```c
+#define _AChoice 1
+#define _nChoice 2
+#define _NChoice 4
+
+for(i = 1; i < iArgC; i++){
+    if(strcmp(ppcArgV[i], "-A") == 0){
+        currentSelection |= _AChoice;
+        currentPhase = _AChoice;
+    }
+    else if (currentPhase == _AChoice){
+        ANumber = atoi(ppcArgV[i]);
+        currentPhase = 0;
+    }
+    else if (strcmp(ppcArgV[i], "-n") == 0){
+        currentSelection |= _nChoice;
+    }
+    else if (strcmp(ppcArgV[i], "-N") == 0){
+        currentSelection |= _NChoice;
+    }
+    else{
+        if(pattern == NULL) pattern = ppcArgV[i];
+        else if(path == NULL) path = ppcArgV[i];
+    }
+}
+```
+SylixOS has a POSIX regular expression library, but it cannot be referred by our grep function which is in the kernel. So we used code from a light weight [regular expression library](https://github.com/jserv/cregex) and modified it to transplant into SylixOS kernel. This regular expression labrary does not support multiple matches with one string, so we recursively perform the regular pattern matching on the remaining part of string after each time it matches something in that string.
+```c
+while(1){
+    if (cregex_program_run(program, target + shift, matches, 20)/*The pattern is matched successfully*/) {
+        //Store pattern occurence positions here......
+        shift = (int) (matches[i + 1] - target);
+        } else {
+        break;
+    }
+}
+```
+The following 2 commands are used to output contents in a specific color and then reset the color to the original one.
+```c
+VOID  API_TShellColorStart2 (CPCHAR  pcColor, INT  iFd);
+VOID  API_TShellColorEnd (INT  iFd);
+```
+Therefore, we use for loop and putchar function to mark the filtered pattern in light red, just as what linux's grep does.
+```c
+for(i = 0; i < search_string_length; i++){
+    if(/*The current index in inside an interval of the pattern */){
+        API_TShellColorStart2(LW_TSHELL_COLOR_RED, STD_OUT);
+    }
+    else{
+        API_TShellColorEnd(STD_OUT);
+    }
+    putchar(search_string[i]);
+}
+```
+If the user uses "-N" to perform a pure filtering, we use KMP algorithm to complete this work because it is fast enough and can find all the occurence positions of a given string within another string.
+
+
 ## Conclusion and Future Work
+
+Our grep function now has some basic functionalities. However, the grep in linux has many advanced usages that have combined actions. The argument parsing and executing scheme might not be enough for adding new arguments. For example, to support "-A" and "-n" argument made us added code to output the result in both the original output function and the output function of "-A", which brang tremendous amount of smelly code into our design. The problem can be easily solved in object-oriented programming languages with some design patterns but much harder in C programming language. In future, we may try to refactor our grep function with visitor pattern or other design patterns to enable it to handle various types of arguments and their combination.
 
