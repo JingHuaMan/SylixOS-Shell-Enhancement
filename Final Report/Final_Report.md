@@ -18,14 +18,6 @@ Design and improve the command line mechanism of `SylixOS`.
 
 We are Group-11.
 
-### Group Member
-
-| Name   | SID      | Division of Labor |
-| ------ | -------- | ----------------- |
-| 徐向宇 | 11810113 | Pipe              |
-| 罗叶安 | 11810616 | Useful Commands   |
-| 李昊锦 | 11810911 | Auto-completion   |
-
 ## Project Background and Description
 
 ### Introduction to SylixOS
@@ -101,7 +93,48 @@ By default, `ll` and `ls ` will always show all the files in the specified direc
 
 ![image-20210528112245294](Final_Report.assets/image-20210528112245294.png)
 
+### pipe
+
+Use `|` to call the pipe to transmit the standard output left command to the right command.
+
+![pipe_result_0](Final_Report.assets/pipe_result_0.png)
+
+|& is used to transmit both standard output and standard error.
+
+![pipe_result_1](Final_Report.assets/pipe_result_1.png)
+
+### logic
+
+1. `;` is used to split statement into two instructions and execute them.
+
+![logic_result_0](Final_Report.assets/logic_result_0.png)
+
+2. `||` is used to split statement into two instructions, execute first command and then execute second command if first command executes wrongly.
+
+![logic_result_1](Final_Report.assets/logic_result_1.png)
+
+3. `&&` is used to split statement into two instructions, execute first command and then execute second command if first command executes correctly.
+
+![logic_result_2](Final_Report.assets/logic_result_2.png)
+
+### IF ELSE
+
+The standard format is like `  x=6; if [ $x < 1 ]; then echo small elif [ $x < 5 ]; then echo middle else echo big fi `.
+
+![if_result_0](Final_Report.assets/if_result_0.png)
+
+It supports comparison between integers and variables.
+
+If want to compare strings, use `[[]]`  like ` if [[ abc > cb ]]; then echo abc else echo cb fi`.
+
+![if_result_1](Final_Report.assets/if_result_1.png)
+
+It can use line break `\` to use with multiple lines:
+
+![if_result_2](Final_Report.assets/if_result_2.png)
+
 ### Grep command
+
 SylixOS does not support **grep** function. Therefore, we implemented a grep function which has some functions similar to them of grep in linux. Besides filtering text from any file input, it can accept **-n** argument to label the index of each row, **-A number** to also display **number** rows after the rows containing our search target. It accepts regular expression as search string to match patterns in the input file. It also accepts argument **-N** to disable the regular expression to perform a pure string matching. The following images demonstrate the usages of our grep function.</br>
 
 This shows the result of performing a regular expression pattern matching combined with "-A" argument.</br>
@@ -286,6 +319,215 @@ if (isAll || *(pdirent->d_name) != '.') {
 
 So that's all of what we have done for this part. It's simple, but we have learned a lot about the utilization of the command registration APIs.
 
+### pipe
+
+In the beginning, we tried to use pipe() and dup2() to realize pipe to transmit from stdout to stdin but failed, because some commands like cat doesn't read from stdin and the processes in SylixOS is complicated. So then I use intermediate file to realize: first redirect the first command to intermediate file, then pass it as argument into second command and finally, remove the intermediate file. 
+
+![pipe_0](Final_Report.assets\pipe_0.png)
+
+In total , we use its redirection function and command reading file to realize pipe. For `|`, we use `>` and for `|&` we use `1> 2>` to pass both stdout and stderr.  And its redirection itself with standard error is not complete, so the `|&` may lose some error information. 
+
+The main part of the modified codes are in the `__tshellExec` function. And we call itself recursively to create and remove the intermediate file under different circumstances.
+
+```
+            INT first= __tshellExec((CPCHAR)firstCmd,pfuncHook);
+            if(first<0 && *(tempCmd-1)!='&'){
+                __tshellExec((CPCHAR)rmCmd,pfuncHook);
+                return first;
+            }
+```
+
+```
+                    int second= __tshellExec((CPCHAR)secondCmd,pfuncHook);
+                    __tshellExec((CPCHAR)rmCmd,pfuncHook);
+                    return second;
+```
+
+And because we use the intermediate file, the cd command is not suitable for pipe. So we modify the `__tshellFsCmdCd` and `__tshellFsCmdCat` functions to realize the cd with fifo and it can read the intermediate file's content so that cd is suitable for pipe.
+
+```
+                INT ret = mkfifo(_pipeName,0777);
+                ...
+                INT fd=open(_pipeName,O_RDWR);
+                CHAR cBuffer[MAX_FILENAME_LENGTH];
+                INT sstNum=read(fd, cBuffer, MAX_FILENAME_LENGTH);
+                if(sstNum<0)
+                    iError= -1;
+                else{
+                    INT temp=1;
+                    while(cBuffer[sstNum - temp] == '\n' ||cBuffer[sstNum - temp] == ' '){
+                        cBuffer[sstNum - temp]=PX_EOS;
+                        temp++;
+                    }
+                    iError=cd(cBuffer);
+                    if (iError){
+                        fprintf(stderr, "cd: error: %s\n", lib_strerror(errno));
+                    }
+                }
+                close(fd);
+                unlink(_pipeName);
+                ...
+```
+
+### logic
+
+We can traverse the statement to find `||` , `&&` or `;` and split the statement into two commands.
+
+Then execute the first command, according to the result and the logic symbol to judge whether to execute the second command.
+
+```
+        if(index1==2){
+            *(tempCmd-1)=PX_EOS;
+            int first=__tshellExec((CPCHAR)pcCmd,pfuncHook);
+            if(first<0){
+                tempCmd++;
+                return __tshellExec((CPCHAR)tempCmd,pfuncHook);
+            }
+            return first;
+        }
+        if(*(tempCmd)=='&')
+            index2++;
+        else
+            index2=0;
+        if(index2==2){
+            *(tempCmd-1)=PX_EOS;
+            int first=__tshellExec((CPCHAR)pcCmd,pfuncHook);
+            if(first>=0){
+                tempCmd++;
+                return __tshellExec((CPCHAR)tempCmd,pfuncHook);
+            }
+            return first;
+        }
+
+        if(*(tempCmd)==';'){
+            *(tempCmd)=PX_EOS;
+            INT error1=__tshellExec((CPCHAR)pcCmd,pfuncHook);
+            tempCmd++;
+            INT error2=__tshellExec((CPCHAR)tempCmd,pfuncHook);
+            return (error1<error2)?error1:error2;
+        }
+```
+
+### IF ELSE
+
+In the implementation of IF ELSE, we don’t use interpreter but a state transition machine to realize it manually. 
+
+![ifelse_0](Final_Report.assets/ifelse_0.png)
+
+We realize it in _tshellIfElse(). At first, it is  in the status 0, and when finding `[` , it will get the status 1. In the process with status 1,  it will collect the left string and right string into two char*.
+
+```
+            INT status=0;    /*0表示未遇到[，1表示未遇到]，2表示未遇到then，3表示未遇到elif或else,4 表示执行后续的指令  */
+            tempcCommand+=2;
+            char left[1024];
+            PCHAR leftPoint=left;
+            INT leftMeet=0;  /*0表示还没有遇到，1表示遇到了，2表示结束了 */
+            char right[1024];
+            PCHAR rightPoint=right;
+            INT rightMeet=0;  /*0表示还没有遇到，1表示遇到了，2表示结束了 */
+            INT judge=-1;    /*-1表示还没有遇到，0表示等于，1表示小于，2表示大于  */
+            INT answer=-1;   /*-1表示还没有计算，0表示等于，1表示小于，2表示大于  */
+            INT string=0;   /*0表示正常，1表示是string */
+```
+
+```
+switch(status)
+                {
+                case 1:
+                    if(judge==-1){
+                        if(leftMeet==1){
+                           ...
+                        }else if(leftMeet==0 && (*tempcCommand!=' ' || __tshellCheck(tempcCommand,"\""))){
+                            ...
+                        }else if(leftMeet==2){
+                            ...
+                        }
+                    }else{
+                        if(rightMeet==0 && (*tempcCommand!=' ' || __tshellCheck(tempcCommand,"\""))){
+                           ...
+                        }else if(rightMeet==1){
+                           ...
+                        }
+                    }
+                    break;
+```
+
+Then when it comes to `]` , it will calculate whether the condition is true. If with `[]`, it is comparison between integers with values. And if with `[[]]`, it is comparison between strings with lexicographical order.
+
+```
+                    if(string){
+                        leftPoint=left;
+                        rightPoint=right;
+                        while(!__TTINY_SHELL_CMD_ISEND(leftPoint) && !__TTINY_SHELL_CMD_ISEND(rightPoint)){
+                            if(*leftPoint==*rightPoint)
+                                continue;
+                            else if(*leftPoint<*rightPoint)
+                                answer=1;
+                            else
+                                answer=2;
+                            break;
+                        }
+                        if(answer ==-1){
+                            ...
+                        }
+                    }else{
+                        INT leftNum=0;
+                        leftPoint=left;
+                        INT rightNum=0;
+                        rightPoint=right;
+                        ...
+                    }
+                    if(answer==judge){
+                        status=2;
+                    }
+                    else{
+                        status=3;
+                    }
+                    tempcCommand+=2;
+                    ...
+                }
+```
+
+After the calculation, it will get status 2 or 3, if 2, it will find `then` to change status to 4 and then execute the command.
+
+```
+                case 4:
+                    {
+                        char execCmd[1024];
+                        PCHAR execCmdPoint=execCmd;
+                        while(!__tshellCheck(tempcCommand,"fi") && !__tshellCheck(tempcCommand,"elif")
+                                && !__tshellCheck(tempcCommand,"else") && !__TTINY_SHELL_CMD_ISEND(tempcCommand)){
+                            *(execCmdPoint++)=*(tempcCommand++);
+                        }
+                        *execCmdPoint=PX_EOS;
+                        return __tshellExec((CPCHAR)execCmd,pfuncHook);
+                    }
+                }
+```
+
+If 3, it will find `else` or `elif`. With else, it will get status 4 like then; with elif, it will get status 0 like beginning.
+
+And we find that SylisOS replace variable with “ \” ”, so we deal with the problem. In the process, we find that the single" symbol will be ignored.
+
+```
+if(__tshellCheck(tempcCommand,"\"")){
+...
+}
+```
+
+Before the function , we have completed the variable replacement so it supports variable.
+
+```
+    ulError = __tshellStrConvertVar(pcCmd, cCommandBuffer);             /*  变量替换                    */
+    if (ulError) {
+        return  ((INT)(-ulError));                                      /*  替换错误                    */
+    }
+
+    //change
+    PCHAR tempcCommand=cCommandBuffer;
+    INT ifelse=_tshellIfElse(tempcCommand,pfuncHook);
+```
+
 ### *grep* command
 
 In SylixOS, we use the following functions to register a command. Such command does not require a binary file.
@@ -367,18 +609,33 @@ In the implementation of history-auto-suggestion function, there are two potenti
 
 The history commands will **NOT** been stored. We guess that it's because the `CLOSE` button means turn off the power of the virtual machine, thus the hook functions related to thread closure will not be called. If we need to solve this problem, we should find a way to capture the signal of the ending of terminal thread, or make the OS to call all the hook functions before VM shutdown. The second problem is that, the readline functions related to `LEFT` , `RIGHT`, `UP`, `DOWN` buttons are somehow called after the cursor move in the terminal. This seems to be some sort of asynchronous mechanism, but we don't yet understand how it works. If we figure out the mechanism, we would be able to add more user-friendly functions to `ttinyShell`.
 
+In the implementation of pipe, I thinks we can add more commands with pipe like wc. And for the commands reading stdin like cd, we should provide an interface to help them get information in the intermediate file more easily. 
+
+At the same time, SylixOS's  redirection is not complete and have some problems which may influence our pipe. So if we can, improving the redirection may enhance shell further.
+
+In IF ELSE part, we use the status transition machine not interpreter to realize. So it can realize other statements such as while, for and so on.  And it doesn't support operations between variables. So if possible, I think it is helpful to transplant an interpreter. It will realize the if else, while, for statements more conveniently. But it is not easy to make it.
+
 Our `grep` function now has some basic functionalities. However, the `grep` in `Linux` has many advanced usages that have combined actions. The argument parsing and executing scheme might not be enough for adding new arguments. For example, to support "-A" and "-n" argument made us added code to output the result in both the original output function and the output function of "-A", which brang tremendous amount of smelly code into our design. The problem can be easily solved in object-oriented programming languages with some design patterns but much harder in C programming language. In future, we may try to refactor our `grep` function with visitor pattern or other design patterns to enable it to handle various types of arguments and their combination.
 
-## Conclusion
+## Summary
 
 In this project, we learned a lot about how shell works and how to install new system commands in the kernel. This is actually the first time for us to involve into such a large project written in C, allowing us to accumulate large project management, development of some experience. In the past month, our teamwork has always been simple and efficient, and we have had a good time.
+
+## Division of labor
+
+| Name   | SID      | Division of Labor    |
+| ------ | -------- | -------------------- |
+| 徐向宇 | 11810113 | Pipe, logic, if else |
+| 罗叶安 | 11810616 | Useful Commands      |
+| 李昊锦 | 11810911 | Auto-completion      |
 
 ## Reference
 
 1. `SylixOS_application_usermanual.pdf`
 2. `SylixOS shell 增强开发指导文档.docx`
-3. https://en.wikipedia.org/wiki/Standard_streams
-4. https://en.wikipedia.org/wiki/Operating_system
-5. http://www.gnu.org/software/bash/manual/
-
-6. https://github.com/jserv/cregex
+3. `RealEvo-IDE_usermanual.pdf`
+4. https://www.cnblogs.com/matthewma/p/6995479.html
+5. https://en.wikipedia.org/wiki/Standard_streams
+6. https://en.wikipedia.org/wiki/Operating_system
+7. http://www.gnu.org/software/bash/manual/
+8. https://github.com/jserv/cregex
