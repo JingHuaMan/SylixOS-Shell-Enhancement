@@ -507,6 +507,218 @@ VOID  __tshellPreTreatedBg (PCHAR  cCommand, BOOL  *pbNeedJoin, BOOL  *pbNeedAsy
         }
     }
 }
+static INT __tshellCheck(PCHAR firstCmd, PCHAR second)
+{
+    INT result=1;
+    while((*(second) != PX_EOS)){
+        if(*(firstCmd++)!=*(second++)){
+            result=0;
+            break;
+        }
+    }
+    return result;
+}
+static INT _tshellIfElse(PCHAR tempcCommand,VOIDFUNCPTR  pfuncHook)
+{
+#define __TTINY_SHELL_CMD_ISEND(pcCmd)      (*(pcCmd) == PX_EOS)
+    while(*tempcCommand==' ')
+        tempcCommand++;
+    PCHAR tempcCommand2=tempcCommand;
+    INT check=0;
+    while(!__TTINY_SHELL_CMD_ISEND(tempcCommand2))
+    {
+        if(__tshellCheck(tempcCommand2++,"then"))
+            check=1;
+    }
+    if(!__tshellCheck(tempcCommand2-2,"fi")){
+        if(check){
+            printf("If statement Error\n");
+            return -2200;
+        }
+        else
+            return 76767;
+    }
+    if(__tshellCheck(tempcCommand,"if"))//needs debug
+        {
+            INT status=0;    /*0表示未遇到[，1表示未遇到]，2表示未遇到then，3表示未遇到elif或else,4 表示执行后续的指令  */
+            tempcCommand+=2;
+            char left[1024];
+            PCHAR leftPoint=left;
+            INT leftMeet=0;  /*0表示还没有遇到，1表示遇到了，2表示结束了 */
+            char right[1024];
+            PCHAR rightPoint=right;
+            INT rightMeet=0;  /*0表示还没有遇到，1表示遇到了，2表示结束了 */
+            INT judge=-1;    /*-1表示还没有遇到，0表示等于，1表示小于，2表示大于  */
+            INT answer=-1;   /*-1表示还没有计算，0表示等于，1表示小于，2表示大于  */
+            INT string=0;   /*0表示正常，1表示是string */
+            while(!__TTINY_SHELL_CMD_ISEND(tempcCommand)){
+                if(status==0 && *tempcCommand=='['){
+                    if(*(tempcCommand+1)=='['){
+                        string=1;
+                        tempcCommand++;
+                    }
+                    status=1;
+                    tempcCommand++;
+                }
+                if(status==1 && *tempcCommand==']'){
+                    if(string){
+                        if(*(tempcCommand+1)==']')
+                            tempcCommand++;
+                        else{
+                            printf("If statement Error\n");
+                            return -2200;
+                        }
+                    }
+                    if(leftMeet!=2 || rightMeet!=2 || judge==-1){
+                        printf("If statement Error\n");
+                        return -2200;
+                    }
+                    if(string){
+                        leftPoint=left;
+                        rightPoint=right;
+                        while(!__TTINY_SHELL_CMD_ISEND(leftPoint) && !__TTINY_SHELL_CMD_ISEND(rightPoint)){
+                            if(*leftPoint==*rightPoint)
+                                continue;
+                            else if(*leftPoint<*rightPoint)
+                                answer=1;
+                            else
+                                answer=2;
+                            break;
+                        }
+                        if(answer ==-1){
+                            if(!__TTINY_SHELL_CMD_ISEND(leftPoint))
+                                answer=2;
+                            else if(!__TTINY_SHELL_CMD_ISEND(rightPoint))
+                                answer=1;
+                            else
+                                answer=0;
+                        }
+                    }else{
+                        INT leftNum=0;
+                        leftPoint=left;
+                        INT rightNum=0;
+                        rightPoint=right;
+                        while(!__TTINY_SHELL_CMD_ISEND(leftPoint)){
+                            leftNum=leftNum*10+(*leftPoint-'0');
+                            leftPoint++;
+                        }
+                        while(!__TTINY_SHELL_CMD_ISEND(rightPoint)){
+                            rightNum=rightNum*10+(*rightPoint-'0');
+                            rightPoint++;
+                        }
+                        if(leftNum==rightNum){
+                            answer=0;
+                        }else if(leftNum>rightNum)
+                            answer=2;
+                        else
+                            answer=1;
+                    }
+                    if(answer==judge){
+                        status=2;
+                    }
+                    else{
+                        status=3;
+                    }
+                    tempcCommand+=2;
+                    leftMeet=0;
+                    rightMeet=0;
+                    judge=-1;
+                    string=0;
+                }
+                if(status==2 && __tshellCheck(tempcCommand,"then")){
+                    status=4;
+                    tempcCommand+=4;
+                }
+                if(status==3 && __tshellCheck(tempcCommand,"elif")){
+                    leftPoint=left;
+                    rightPoint=right;
+                    status=0;
+                    tempcCommand+=4;
+                }
+                if(status==3 && __tshellCheck(tempcCommand,"else")){
+                    status=4;
+                    tempcCommand+=4;
+                }
+                switch(status)
+                {
+                case 1:
+                    if(judge==-1){
+                        if(leftMeet==1){
+                            if(*tempcCommand==' '){
+                                *leftPoint=PX_EOS;
+                                leftMeet=2;
+                            }
+                            else{
+                                if(__tshellCheck(tempcCommand,"\"")){
+                                }else{
+                                    *leftPoint=*tempcCommand;
+                                    leftPoint++;
+                                }
+                            }
+                        }else if(leftMeet==0 && (*tempcCommand!=' ' || __tshellCheck(tempcCommand,"\""))){
+                            if(__tshellCheck(tempcCommand,"\"")){
+                            }
+                            else{
+                                leftMeet=1;
+                                *leftPoint=*tempcCommand;
+                                leftPoint++;
+                            }
+                        }else if(leftMeet==2){
+                            if(__tshellCheck(tempcCommand,"==")){
+                                judge=0;
+                                tempcCommand++;
+                            }
+                            else if(__tshellCheck(tempcCommand,"< ")){
+                                judge=1;
+                                tempcCommand++;
+                            }
+                            else if(__tshellCheck(tempcCommand,"> ")){
+                                judge=2;
+                                tempcCommand++;
+                            }
+                        }
+                    }else{
+                        if(rightMeet==0 && (*tempcCommand!=' ' || __tshellCheck(tempcCommand,"\""))){
+                            if(__tshellCheck(tempcCommand,"\"")){
+                                //nothing
+                            }
+                            else{
+                                rightMeet=1;
+                                *rightPoint=*tempcCommand;
+                                rightPoint++;
+                            }
+                        }else if(rightMeet==1){
+                            if(*tempcCommand==' '){
+                                *rightPoint=PX_EOS;
+                                rightMeet=2;
+                            }
+                            else{
+                                if(__tshellCheck(tempcCommand,"\"")){
+                                }else{
+                                    *rightPoint=*tempcCommand;
+                                    rightPoint++;
+                                }
+                            }
+                        }
+                    }
+                    break;
+                case 4:
+                    {
+                        char execCmd[1024];
+                        PCHAR execCmdPoint=execCmd;
+                        while(!__tshellCheck(tempcCommand,"fi") && !__tshellCheck(tempcCommand,"elif")
+                                && !__tshellCheck(tempcCommand,"else") && !__TTINY_SHELL_CMD_ISEND(tempcCommand)){
+                            *(execCmdPoint++)=*(tempcCommand++);
+                        }
+                        *execCmdPoint=PX_EOS;
+                        return __tshellExec((CPCHAR)execCmd,pfuncHook);
+                    }
+                }
+                tempcCommand++;
+            }
+        }
+    return 76767;
+}
 /*********************************************************************************************************
 ** 函数名称: __tshellExec
 ** 功能描述: ttiny shell 系统, 执行一条 shell 命令
@@ -573,9 +785,20 @@ INT  __tshellExec (CPCHAR  pcCommandExec, VOIDFUNCPTR  pfuncHook)
         return  (-ERROR_TSHELL_EPARAM);                                 /*  字符串长度错误              */
     }
 
+    ulError = __tshellStrConvertVar(pcCmd, cCommandBuffer);             /*  变量替换                    */
+    if (ulError) {
+        return  ((INT)(-ulError));                                      /*  替换错误                    */
+    }
+
     //change
+    PCHAR tempcCommand=cCommandBuffer;
+    INT ifelse=_tshellIfElse(tempcCommand,pfuncHook);
+
+    if(ifelse!=76767)
+        return ifelse;
+
     PCHAR tempCmd=pcCmd;
-    char firstCmd[stStrLen+15];
+    char firstCmd[stStrLen+20];
     PCHAR firstCmdPoint=firstCmd;
     char secondCmd[stStrLen+15];
     PCHAR secondCmdPoint=secondCmd;
@@ -586,22 +809,54 @@ INT  __tshellExec (CPCHAR  pcCommandExec, VOIDFUNCPTR  pfuncHook)
         if(*(tempCmd)=='|')
             index1++;
         else if(index1==1){
-            *(firstCmdPoint-1)='>';
-            *(firstCmdPoint++)='/';
-            *(firstCmdPoint++)='e';
-            *(firstCmdPoint++)='t';
-            *(firstCmdPoint++)='c';
-            *(firstCmdPoint++)='/';
-            *(firstCmdPoint++)='.';
-            *(firstCmdPoint++)='l';
-            *(firstCmdPoint++)='o';
-            *(firstCmdPoint++)='g';
-            *(firstCmdPoint++)=PX_EOS;
-            int first= __tshellExec((CPCHAR)firstCmd,pfuncHook);
-            if(first<0)
-                return first;
+            if(*(tempCmd)=='&'){
+                tempCmd++;
+                *(firstCmdPoint-1)='1';
+                *(firstCmdPoint++)='>';
+                *(firstCmdPoint++)='/';
+                *(firstCmdPoint++)='e';
+                *(firstCmdPoint++)='t';
+                *(firstCmdPoint++)='c';
+                *(firstCmdPoint++)='/';
+                *(firstCmdPoint++)='.';
+                *(firstCmdPoint++)='l';
+                *(firstCmdPoint++)='o';
+                *(firstCmdPoint++)='g';
+                *(firstCmdPoint++)=' ';
+                *(firstCmdPoint++)='2';
+                *(firstCmdPoint++)='>';
+                *(firstCmdPoint++)='/';
+                *(firstCmdPoint++)='e';
+                *(firstCmdPoint++)='t';
+                *(firstCmdPoint++)='c';
+                *(firstCmdPoint++)='/';
+                *(firstCmdPoint++)='.';
+                *(firstCmdPoint++)='l';
+                *(firstCmdPoint++)='o';
+                *(firstCmdPoint++)='g';
+                *(firstCmdPoint++)=PX_EOS;
+            }
+            else{
+                *(firstCmdPoint-1)='>';
+                *(firstCmdPoint++)='/';
+                *(firstCmdPoint++)='e';
+                *(firstCmdPoint++)='t';
+                *(firstCmdPoint++)='c';
+                *(firstCmdPoint++)='/';
+                *(firstCmdPoint++)='.';
+                *(firstCmdPoint++)='l';
+                *(firstCmdPoint++)='o';
+                *(firstCmdPoint++)='g';
+                *(firstCmdPoint++)=PX_EOS;
+            }
 
-            int pass=1;
+            INT first= __tshellExec((CPCHAR)firstCmd,pfuncHook);
+            if(first<0 && *(tempCmd-1)!='&'){
+                __tshellExec((CPCHAR)rmCmd,pfuncHook);
+                return first;
+            }
+
+            INT pass=1;
             while(1){
                 if(*(tempCmd)==PX_EOS){
                     if(pass){
@@ -617,6 +872,8 @@ INT  __tshellExec (CPCHAR  pcCommandExec, VOIDFUNCPTR  pfuncHook)
                         *(secondCmdPoint++)='g';
                         *(secondCmdPoint++)=PX_EOS;
                     }
+                    else
+                        *(secondCmdPoint++)=PX_EOS;
                     int second= __tshellExec((CPCHAR)secondCmd,pfuncHook);
                     __tshellExec((CPCHAR)rmCmd,pfuncHook);
                     return second;
@@ -669,20 +926,16 @@ INT  __tshellExec (CPCHAR  pcCommandExec, VOIDFUNCPTR  pfuncHook)
 
         if(*(tempCmd)==';'){
             *(tempCmd)=PX_EOS;
-            __tshellExec((CPCHAR)pcCmd,pfuncHook);
+            INT error1=__tshellExec((CPCHAR)pcCmd,pfuncHook);
             tempCmd++;
-            return __tshellExec((CPCHAR)tempCmd,pfuncHook);//这里返回什么还存疑
+            INT error2=__tshellExec((CPCHAR)tempCmd,pfuncHook);
+            return (error1<error2)?error1:error2;
         }
         *(firstCmdPoint)=*(tempCmd);
         tempCmd++;
         firstCmdPoint++;
     }
 
-    ulError = __tshellStrConvertVar(pcCmd, cCommandBuffer);             /*  变量替换                    */
-    if (ulError) {
-        return  ((INT)(-ulError));                                      /*  替换错误                    */
-    }
-    
     __tshellPreTreatedBg(cCommandBuffer, 
                          &bCmdLineNeedJoin, &bCmdLineNeedAsyn);         /*  预处理背景执行相关参数      */
     

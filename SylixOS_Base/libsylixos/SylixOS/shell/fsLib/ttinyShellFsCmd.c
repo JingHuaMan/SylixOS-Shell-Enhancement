@@ -159,8 +159,17 @@ static INT  __tshellFsCmdCd (INT  iArgC, PCHAR  ppcArgV[])
                 INT sstNum=read(fd, cBuffer, MAX_FILENAME_LENGTH);
                 if(sstNum<0)
                     iError= -1;
-                else
-                    write(1,cBuffer,sstNum);
+                else{
+                    INT temp=1;
+                    while(cBuffer[sstNum - temp] == '\n' ||cBuffer[sstNum - temp] == ' '){
+                        cBuffer[sstNum - temp]=PX_EOS;
+                        temp++;
+                    }
+                    iError=cd(cBuffer);
+                    if (iError){
+                        fprintf(stderr, "cd: error: %s\n", lib_strerror(errno));
+                    }
+                }
                 close(fd);
                 unlink(_pipeName);
             }else{
@@ -175,7 +184,6 @@ static INT  __tshellFsCmdCd (INT  iArgC, PCHAR  ppcArgV[])
     
     return  (ERROR_NONE);
 }
-
 static INT _tShellPipeJudge(CPCHAR pcName)
 {
     CPCHAR temp=pcName;
@@ -539,8 +547,8 @@ static INT  __tshellFsCmdCat (INT  iArgC, PCHAR  ppcArgV[])
     if (!bLastLf && !pipe) {
         printf("\n");
     }
-    
-    close(fd);
+    if(fd>0)
+        close(fd);
     return  (ERROR_NONE);
 }
 /*********************************************************************************************************
