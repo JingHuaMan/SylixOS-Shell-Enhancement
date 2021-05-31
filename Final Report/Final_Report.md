@@ -143,10 +143,10 @@ This shows the result of performing a regular expression pattern matching combin
 This shows the result of performing a regular expression pattern matching combined with "-A" and "-n" arguments. It has a similar behavior with linux's grep.</br>
 ![grep_result_1](Final_Report.assets/grep_result_1.png)
 
-This shows the result of performing a regular expression pattern with a complicated regular pattern.</br>
+This shows the result of performing a regular expression pattern matching given a complicated regular pattern.</br>
 ![grep_result_2](Final_Report.assets/grep_result_2.png)
 
-This shows the result of performing a regular expression pattern combined with our pipeline scheme.</br>
+This shows the result of performing a regular expression pattern matching combined with our pipeline scheme.</br>
 ![grep_result_4](Final_Report.assets/grep_result_4.png)
 
 ## Implementation
