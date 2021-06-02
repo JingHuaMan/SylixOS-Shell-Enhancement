@@ -1,6 +1,6 @@
 # SylixOS-Shell-Enhancement
 
-南方科技大学操作系统课程project，
+南方科技大学操作系统课程project
 
 [设计文档戳这里](https://github.com/JingHuaMan/SylixOS-Shell-Enhancement/blob/main/Design%20Report/Design%20Report.md)
 
