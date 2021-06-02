@@ -10,22 +10,6 @@ proj12-shell-enhancement-on-SylixOS
 
 Design and improve the command line mechanism of `SylixOS`.
 
-### Deadline for this Project
-
-2021/5/30 23 : 00
-
-### Group ID
-
-We are Group-11.
-
-### Group Member
-
-| Name   | SID      |
-| ------ | -------- |
-| 徐向宇 | 11810113 |
-| 罗叶安 | 11810616 |
-| 李昊锦 | 11810911 |
-
 ## Project Background and Description
 
 ### Introduction to SylixOS
