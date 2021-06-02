@@ -10,14 +10,6 @@ proj12-shell-enhancement-on-SylixOS
 
 Design and improve the command line mechanism of `SylixOS`.
 
-### Deadline for this Project
-
-2021/5/30 23 : 00
-
-### Group ID
-
-We are Group-11.
-
 ## Project Background and Description
 
 ### Introduction to SylixOS
@@ -620,14 +612,6 @@ Our `grep` function now has some basic functionalities. However, the `grep` in `
 ## Summary
 
 In this project, we learned a lot about how shell works and how to install new system commands in the kernel. This is actually the first time for us to involve into such a large project written in C, allowing us to accumulate large project management, development of some experience. In the past month, our teamwork has always been simple and efficient, and we have had a good time.
-
-## Division of labor
-
-| Name   | SID      | Division of Labor    |
-| ------ | -------- | -------------------- |
-| 徐向宇 | 11810113 | Pipe, logic, if else |
-| 罗叶安 | 11810616 | Useful Commands      |
-| 李昊锦 | 11810911 | Auto-completion      |
 
 ## Reference
 
