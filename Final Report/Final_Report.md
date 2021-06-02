@@ -315,7 +315,7 @@ So that's all of what we have done for this part. It's simple, but we have learn
 
 In the beginning, we tried to use pipe() and dup2() to realize pipe to transmit from stdout to stdin but failed, because some commands like cat doesn't read from stdin and the processes in SylixOS is complicated. So then I use intermediate file to realize: first redirect the first command to intermediate file, then pass it as argument into second command and finally, remove the intermediate file. 
 
-![pipe_0](Final_Report.assets\pipe_0.png)
+![pipe_0](https://github.com/JingHuaMan/SylixOS-Shell-Enhancement/blob/main/Final%20Report/Final_Report.assets/pipe_0.png)
 
 In total , we use its redirection function and command reading file to realize pipe. For `|`, we use `>` and for `|&` we use `1> 2>` to pass both stdout and stderr.  And its redirection itself with standard error is not complete, so the `|&` may lose some error information. 
 
