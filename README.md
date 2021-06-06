@@ -2,6 +2,8 @@
 
 南方科技大学操作系统课程project
 
+[SylixOS是啥？](http://wiki.sylixos.com/index.php/%E7%B3%BB%E7%BB%9F%E7%AE%80%E4%BB%8B)
+
 [设计文档戳这里](https://github.com/JingHuaMan/SylixOS-Shell-Enhancement/blob/main/Design%20Report/Design%20Report.md)
 
 [最终报告戳这里](https://github.com/JingHuaMan/SylixOS-Shell-Enhancement/blob/main/Final%20Report/Final_Report.md)
